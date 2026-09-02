@@ -1,24 +1,257 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { mockApi } from "../api/mock-service";
-import { ArrowIcon, CheckIcon, ReceiptIcon, ShieldIcon, TrendIcon, WalletIcon } from "../components/icons";
-import { Badge, Button, Card, Modal, PageHeader, Skeleton } from "../components/ui";
+import {
+  ArrowIcon,
+  CheckIcon,
+  ReceiptIcon,
+  ShieldIcon,
+  TrendIcon,
+  WalletIcon,
+} from "../components/icons";
+import {
+  Badge,
+  Button,
+  Card,
+  Modal,
+  PageHeader,
+  Skeleton,
+} from "../components/ui";
 import { formatCurrency, formatDate } from "../utils/formatters";
 export function WalletPage() {
-    const { data, isLoading } = useQuery({ queryKey: ["wallet"], queryFn: mockApi.wallet });
-    const [open, setOpen] = useState(false);
-    const [amount, setAmount] = useState("");
-    const [success, setSuccess] = useState(false);
-    const queryClient = useQueryClient();
-    const withdraw = useMutation({ mutationFn: () => mockApi.withdraw(Number(amount)), onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: ["wallet"] }); await queryClient.invalidateQueries({ queryKey: ["transactions"] }); setSuccess(true); } });
-    const invalid = Number(amount) <= 0 || Number(amount) > (data?.available ?? 0);
-    return <div className="page"><PageHeader eyebrow="YOUR MONEY" title="Wallet" description="A clear view of money available now and committed to your circles."/><section className="wallet-hero"><div><span>Available to withdraw</span>{isLoading ? <Skeleton className="skeleton--amount"/> : <strong>{formatCurrency(data?.available ?? 0)}</strong>}<small>Last updated just now</small><Button variant="secondary" onClick={() => setOpen(true)}>Withdraw money <ArrowIcon /></Button></div><ShieldIcon /></section><div className="stats-grid"><Card className="mini-stat"><span><UsersIconShim /></span><div><small>In active Ajos</small><strong>{formatCurrency(data?.ajoBalance ?? 0)}</strong></div></Card><Card className="mini-stat"><span><ReceiptIcon /></span><div><small>Pending withdrawals</small><strong>{formatCurrency(data?.pending ?? 0)}</strong></div></Card><Card className="mini-stat"><span><TrendIcon /></span><div><small>Total saved this year</small><strong>{formatCurrency(1_480_000)}</strong></div></Card></div><Card className="funding-note"><span><WalletIcon /></span><div><h2>Fund your wallet</h2><p>Make a bank transfer to your personal AjoPay account. Your balance updates after confirmation.</p></div><Button variant="secondary">View account details</Button></Card><Modal open={open} onClose={() => { setOpen(false); setSuccess(false); setAmount(""); }} title={success ? "Withdrawal submitted" : "Withdraw to your bank"}>{success ? <div className="success-panel"><span><CheckIcon /></span><h3>Your request is being processed</h3><p>We’ll notify you when {formatCurrency(Number(amount))} reaches your GTBank account ending 8842.</p><Button onClick={() => setOpen(false)}>Done</Button></div> : <form className="modal-form" onSubmit={(e) => { e.preventDefault(); if (!invalid)
-        withdraw.mutate(); }}><div className="summary-box"><span>Available balance</span><b>{formatCurrency(data?.available ?? 0)}</b></div><label>Amount (₦)<input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Enter amount"/></label>{Number(amount) > (data?.available ?? 0) && <div className="form-error">Amount exceeds your available balance.</div>}<label>Bank account<select><option>GTBank •••• 8842</option></select></label><p className="secure-note"><ShieldIcon />Withdrawals are confirmed by the server and usually arrive within one business day.</p><Button disabled={invalid || withdraw.isPending}>{withdraw.isPending ? "Submitting…" : "Review withdrawal"}</Button></form>}</Modal></div>;
+  const { data, isLoading } = useQuery({
+    queryKey: ["wallet"],
+    queryFn: mockApi.wallet,
+  });
+  const [open, setOpen] = useState(false);
+  const [amount, setAmount] = useState("");
+  const [success, setSuccess] = useState(false);
+  const queryClient = useQueryClient();
+  const withdraw = useMutation({
+    mutationFn: () => mockApi.withdraw(Number(amount)),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["wallet"] });
+      await queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      setSuccess(true);
+    },
+  });
+  const invalid =
+    Number(amount) <= 0 || Number(amount) > (data?.available ?? 0);
+  return (
+    <div className="page">
+      <PageHeader
+        eyebrow="YOUR MONEY"
+        title="Wallet"
+        description="A clear view of money available now and committed to your circles."
+      />
+      <section className="wallet-hero">
+        <div>
+          <span>Available to withdraw</span>
+          {isLoading ? (
+            <Skeleton className="skeleton--amount" />
+          ) : (
+            <strong>{formatCurrency(data?.available ?? 0)}</strong>
+          )}
+          <small>Last updated just now</small>
+          <Button variant="secondary" onClick={() => setOpen(true)}>
+            Withdraw money <ArrowIcon />
+          </Button>
+        </div>
+        <ShieldIcon />
+      </section>
+      <div className="stats-grid">
+        <Card className="mini-stat">
+          <span>
+            <UsersIconShim />
+          </span>
+          <div>
+            <small>In active Ajos</small>
+            <strong>{formatCurrency(data?.ajoBalance ?? 0)}</strong>
+          </div>
+        </Card>
+        <Card className="mini-stat">
+          <span>
+            <ReceiptIcon />
+          </span>
+          <div>
+            <small>Pending withdrawals</small>
+            <strong>{formatCurrency(data?.pending ?? 0)}</strong>
+          </div>
+        </Card>
+        <Card className="mini-stat">
+          <span>
+            <TrendIcon />
+          </span>
+          <div>
+            <small>Total saved this year</small>
+            <strong>{formatCurrency(1_480_000)}</strong>
+          </div>
+        </Card>
+      </div>
+      <Card className="funding-note">
+        <span>
+          <WalletIcon />
+        </span>
+        <div>
+          <h2>Fund your wallet</h2>
+          <p>
+            Make a bank transfer to your personal AjoPay account. Your balance
+            updates after confirmation.
+          </p>
+        </div>
+        <Button variant="secondary">View account details</Button>
+      </Card>
+      <Modal
+        open={open}
+        onClose={() => {
+          setOpen(false);
+          setSuccess(false);
+          setAmount("");
+        }}
+        title={success ? "Withdrawal submitted" : "Withdraw to your bank"}
+      >
+        {success ? (
+          <div className="success-panel">
+            <span>
+              <CheckIcon />
+            </span>
+            <h3>Your request is being processed</h3>
+            <p>
+              We’ll notify you when {formatCurrency(Number(amount))} reaches
+              your GTBank account ending 8842.
+            </p>
+            <Button onClick={() => setOpen(false)}>Done</Button>
+          </div>
+        ) : (
+          <form
+            className="modal-form"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!invalid) withdraw.mutate();
+            }}
+          >
+            <div className="summary-box">
+              <span>Available balance</span>
+              <b>{formatCurrency(data?.available ?? 0)}</b>
+            </div>
+            <label>
+              Amount (₦)
+              <input
+                type="number"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="Enter amount"
+              />
+            </label>
+            {Number(amount) > (data?.available ?? 0) && (
+              <div className="form-error">
+                Amount exceeds your available balance.
+              </div>
+            )}
+            <label>
+              Bank account
+              <select>
+                <option>GTBank •••• 8842</option>
+              </select>
+            </label>
+            <p className="secure-note">
+              <ShieldIcon />
+              Withdrawals are confirmed by the server and usually arrive within
+              one business day.
+            </p>
+            <Button disabled={invalid || withdraw.isPending}>
+              {withdraw.isPending ? "Submitting…" : "Review withdrawal"}
+            </Button>
+          </form>
+        )}
+      </Modal>
+    </div>
+  );
 }
-function UsersIconShim() { return <span aria-hidden="true">₦</span>; }
+function UsersIconShim() {
+  return <span aria-hidden="true">₦</span>;
+}
 export function TransactionsPage() {
-    const [filter, setFilter] = useState("ALL");
-    const { data = [], isLoading } = useQuery({ queryKey: ["transactions"], queryFn: mockApi.transactions });
-    const rows = useMemo(() => filter === "ALL" ? data : data.filter((tx) => tx.type === filter), [data, filter]);
-    return <div className="page"><PageHeader eyebrow="MONEY TRAIL" title="Transactions" description="Every confirmed payment, payout, and withdrawal in one place."/><div className="filter-bar filter-bar--simple"><div className="tabs">{["ALL", "CONTRIBUTION", "PAYOUT", "WITHDRAWAL", "FUNDING"].map((item) => <button className={filter === item ? "active" : ""} onClick={() => setFilter(item)} key={item}>{item.charAt(0) + item.slice(1).toLowerCase()}</button>)}</div></div><Card className="table-card"><div className="data-table"><div className="data-table__head"><span>Transaction</span><span>Date</span><span>Status</span><span>Amount</span></div>{isLoading ? <Skeleton className="skeleton--table"/> : rows.map((tx) => <div className="data-table__row" key={tx.id}><span><i className={`activity-icon activity-icon--${tx.direction}`}>{tx.direction === "credit" ? <TrendIcon /> : <ReceiptIcon />}</i><span><b>{tx.title}</b><small>{tx.subtitle}</small></span></span><span>{formatDate(tx.date)}</span><span><Badge tone={tx.status === "SUCCESSFUL" ? "green" : tx.status === "PENDING" ? "amber" : "red"}>{tx.status.toLowerCase()}</Badge></span><strong className={tx.direction}>{tx.direction === "credit" ? "+" : "−"}{formatCurrency(tx.amount)}</strong></div>)}</div></Card></div>;
+  const [filter, setFilter] = useState("ALL");
+  const { data = [], isLoading } = useQuery({
+    queryKey: ["transactions"],
+    queryFn: mockApi.transactions,
+  });
+  const rows = useMemo(
+    () => (filter === "ALL" ? data : data.filter((tx) => tx.type === filter)),
+    [data, filter],
+  );
+  return (
+    <div className="page">
+      <PageHeader
+        eyebrow="MONEY TRAIL"
+        title="Transactions"
+        description="Every confirmed payment, payout, and withdrawal in one place."
+      />
+      <div className="filter-bar filter-bar--simple">
+        <div className="tabs">
+          {["ALL", "CONTRIBUTION", "PAYOUT", "WITHDRAWAL", "FUNDING"].map(
+            (item) => (
+              <button
+                className={filter === item ? "active" : ""}
+                onClick={() => setFilter(item)}
+                key={item}
+              >
+                {item.charAt(0) + item.slice(1).toLowerCase()}
+              </button>
+            ),
+          )}
+        </div>
+      </div>
+      <Card className="table-card">
+        <div className="data-table">
+          <div className="data-table__head">
+            <span>Transaction</span>
+            <span>Date</span>
+            <span>Status</span>
+            <span>Amount</span>
+          </div>
+          {isLoading ? (
+            <Skeleton className="skeleton--table" />
+          ) : (
+            rows.map((tx) => (
+              <div className="data-table__row" key={tx.id}>
+                <span>
+                  <i className={`activity-icon activity-icon--${tx.direction}`}>
+                    {tx.direction === "credit" ? (
+                      <TrendIcon />
+                    ) : (
+                      <ReceiptIcon />
+                    )}
+                  </i>
+                  <span>
+                    <b>{tx.title}</b>
+                    <small>{tx.subtitle}</small>
+                  </span>
+                </span>
+                <span>{formatDate(tx.date)}</span>
+                <span>
+                  <Badge
+                    tone={
+                      tx.status === "SUCCESSFUL"
+                        ? "green"
+                        : tx.status === "PENDING"
+                          ? "amber"
+                          : "red"
+                    }
+                  >
+                    {tx.status.toLowerCase()}
+                  </Badge>
+                </span>
+                <strong className={tx.direction}>
+                  {tx.direction === "credit" ? "+" : "−"}
+                  {formatCurrency(tx.amount)}
+                </strong>
+              </div>
+            ))
+          )}
+        </div>
+      </Card>
+    </div>
+  );
 }
