@@ -1,0 +1,96 @@
+.auth-page > main {
+  position: relative;
+}
+
+.auth-back {
+  position: absolute;
+  top: 34px;
+  left: 38px;
+  padding: 9px 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  border-radius: 9px;
+  color: #315f53;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 800;
+  transition: background .2s ease, transform .2s ease;
+}
+
+.auth-back:hover {
+  background: #edf5f1;
+  transform: translateX(-3px);
+}
+
+.auth-back:focus-visible {
+  outline: 3px solid rgba(49, 95, 83, .2);
+  outline-offset: 2px;
+}
+
+.auth-back span {
+  font-size: 19px;
+  line-height: 1;
+}
+
+.auth-input {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.auth-input > svg {
+  position: absolute;
+  left: 14px;
+  z-index: 1;
+  width: 18px;
+  height: 18px;
+  color: #7c8d87;
+  pointer-events: none;
+  transition: color .2s ease;
+}
+
+.auth-input input {
+  width: 100%;
+  padding-left: 44px;
+}
+
+.auth-input:focus-within > svg {
+  color: #28705d;
+}
+
+.auth-input > button {
+  position: absolute;
+  right: 7px;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  color: #71837d;
+  background: transparent;
+}
+
+.auth-input > button:hover {
+  color: #286b59;
+  background: #edf5f1;
+}
+
+.auth-input > button svg {
+  width: 17px;
+  height: 17px;
+}
+
+.auth-input:has(> button) input {
+  padding-right: 48px;
+}
+
+@media (max-width: 560px) {
+  .auth-back {
+    top: 18px;
+    left: 12px;
+  }
+}
