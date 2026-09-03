@@ -11,10 +11,13 @@ import {
   UserIcon,
 } from "../components/icons";
 import { Button } from "../components/ui";
+import { LanguageSelector } from "../components/language-selector";
 import { useAuth } from "../contexts/auth-context";
+import { Trans, useTranslation } from "react-i18next";
 import "./auth.css";
 
 export function AuthPage({ mode }) {
+  const { t } = useTranslation();
   const { user, login, register, loading, enterDemo } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -39,18 +42,21 @@ export function AuthPage({ mode }) {
       password.length < 6 ||
       (mode === "register" && !name.trim())
     ) {
-      setError(
-        "Please complete all fields. Passwords need at least 6 characters.",
-      );
+      setError(t("auth.validation"));
       return;
     }
     try {
       if (mode === "login") await login(email, password);
-      else await register(name, email, password);
+      else {
+        await register(name, email, password);
+        sessionStorage.setItem("ajopay-verification-email", email);
+        navigate("/verify-email", { state: { email }, replace: true });
+        return;
+      }
       const destination = location.state?.from ?? "/dashboard";
       navigate(destination, { replace: true });
-    } catch {
-      setError("We couldn’t sign you in. Please try again.");
+    } catch (requestError) {
+      setError(requestError.message || t("auth.loginError"));
     }
   };
 
@@ -64,50 +70,55 @@ export function AuthPage({ mode }) {
       <aside>
         <BrandMark light />
         <div>
-          <span className="eyebrow">SAVE WITH CONFIDENCE</span>
+          <span className="eyebrow">{t("auth.saveWithConfidence")}</span>
           <h1>
-            Big goals feel lighter when we carry them <em>together.</em>
+            <Trans i18nKey="auth.headline" components={{ em: <em /> }} />
           </h1>
-          <p>
-            Join thousands of Nigerians building better futures through trusted
-            savings circles.
-          </p>
+          <p>{t("auth.introduction")}</p>
           <ul>
             <li>
               <CheckIcon />
-              Transparent contribution records
+              {t("auth.transparentRecords")}
             </li>
             <li>
               <CheckIcon />
-              Secure, confirmed transactions
+              {t("auth.secureTransactions")}
             </li>
             <li>
               <CheckIcon />
-              Community ratings you can trust
+              {t("auth.trustedRatings")}
             </li>
           </ul>
         </div>
         <small>
           <ShieldIcon />
-          Your information is encrypted and protected.
+          {t("auth.protected")}
         </small>
       </aside>
       <main>
         <button className="auth-back" type="button" onClick={goBack}>
-          <span aria-hidden="true">←</span> Back
+          <span aria-hidden="true">←</span> {t("auth.back")}
         </button>
+        <div className="auth-language">
+          <LanguageSelector />
+        </div>
         <div className="auth-card">
           <BrandMark />
-          <h2>{mode === "login" ? "Welcome back" : "Create your account"}</h2>
+          <h2>{mode === "login" ? t("auth.welcomeBack") : t("auth.createAccount")}</h2>
           <p>
             {mode === "login"
-              ? "Log in to continue your savings journey."
-              : "Start saving towards what matters to you."}
+              ? t("auth.loginIntro")
+              : t("auth.registerIntro")}
           </p>
+          {mode === "login" && location.state?.passwordReset && (
+            <div className="success-banner" role="status">
+              <CheckIcon /> Password updated. You can now log in.
+            </div>
+          )}
           <form onSubmit={submit}>
             {mode === "register" && (
               <label>
-                Full name
+                {t("auth.fullName")}
                 <div className="auth-input">
                   <UserIcon />
                   <input
@@ -119,7 +130,7 @@ export function AuthPage({ mode }) {
               </label>
             )}
             <label>
-              Email address
+              {t("auth.email")}
               <div className="auth-input">
                 <MailIcon />
                 <input
@@ -130,9 +141,14 @@ export function AuthPage({ mode }) {
                 />
               </div>
             </label>
+            {mode === "login" && (
+              <Link className="auth-forgot" to="/forgot-password">
+                Forgot password?
+              </Link>
+            )}
             <label>
-              Password
-              <div className="auth-input">
+              {t("auth.password")}
+              <div className="auth-input auth-input--password">
                 <LockIcon />
                 <input
                   value={password}
@@ -145,7 +161,7 @@ export function AuthPage({ mode }) {
                 <button
                   type="button"
                   onClick={() => setShowPassword((visible) => !visible)}
-                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  aria-label={showPassword ? t("auth.hidePassword") : t("auth.showPassword")}
                 >
                   {showPassword ? <EyeOffIcon /> : <EyeIcon />}
                 </button>
@@ -158,20 +174,28 @@ export function AuthPage({ mode }) {
             )}
             <Button type="submit" disabled={loading}>
               {loading
-                ? "Please wait…"
+                ? t("auth.pleaseWait")
                 : mode === "login"
-                  ? "Log in"
-                  : "Create account"}
+                  ? t("auth.login")
+                  : t("auth.create")}
             </Button>
+            {mode === "register" && (
+              <p className="auth-legal">
+                <Trans
+                  i18nKey="auth.legal"
+                  components={{ terms: <Link to="/terms" /> }}
+                />
+              </p>
+            )}
           </form>
           <div className="demo-row">
-            <button onClick={() => demo()}>Use member demo</button>
-            <button onClick={() => demo(true)}>Use admin demo</button>
+            <button onClick={() => demo()}>{t("auth.memberDemo")}</button>
+            <button onClick={() => demo(true)}>{t("auth.adminDemo")}</button>
           </div>
           <p className="auth-switch">
-            {mode === "login" ? "New to AjoPay?" : "Already have an account?"}{" "}
+            {mode === "login" ? t("auth.newToAjoPay") : t("auth.alreadyAccount")}{" "}
             <Link to={mode === "login" ? "/register" : "/login"}>
-              {mode === "login" ? "Create account" : "Log in"}
+              {mode === "login" ? t("auth.create") : t("auth.login")}
             </Link>
           </p>
         </div>

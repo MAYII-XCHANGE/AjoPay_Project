@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { CloseIcon } from "./icons";
+import { useTranslation } from "react-i18next";
 export function Button({ className = "", variant = "primary", ...props }) {
   return (
     <button className={`button button--${variant} ${className}`} {...props} />
@@ -30,6 +31,7 @@ export function Skeleton({ className = "" }) {
   return <div className={`skeleton ${className}`} aria-hidden="true" />;
 }
 export function Modal({ open, onClose, title, children }) {
+  const { t } = useTranslation();
   useEffect(() => {
     if (!open) return;
     const close = (event) => event.key === "Escape" && onClose();
@@ -54,7 +56,7 @@ export function Modal({ open, onClose, title, children }) {
           <button
             className="icon-button"
             onClick={onClose}
-            aria-label="Close dialog"
+            aria-label={t("common.closeDialog")}
           >
             <CloseIcon />
           </button>

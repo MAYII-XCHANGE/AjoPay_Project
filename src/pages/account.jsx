@@ -1,29 +1,38 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { mockApi } from "../api/mock-service";
-import { BellIcon, CheckIcon, ShieldIcon, UserIcon } from "../components/icons";
+import { BellIcon, CheckIcon, UserIcon } from "../components/icons";
 import {
-  Badge,
   Button,
   Card,
   EmptyState,
   PageHeader,
   Skeleton,
 } from "../components/ui";
-import { useAuth } from "../contexts/auth-context";
 import { formatDate } from "../utils/formatters";
+import { useAuth } from "../contexts/auth-context";
 export function NotificationsPage() {
   const client = useQueryClient();
-  const { data = [], isLoading } = useQuery({
-    queryKey: ["notifications"],
-    queryFn: mockApi.notifications,
+  const { user } = useAuth();
+  const { data: notificationPage, isLoading } = useQuery({
+    queryKey: ["notifications", user?.id],
+    queryFn: () => mockApi.notifications(user?.id),
   });
+  const data = notificationPage?.items || [];
   const markRead = useMutation({
     mutationFn: mockApi.markNotificationRead,
     onMutate: async (id) => {
-      await client.cancelQueries({ queryKey: ["notifications"] });
+      await client.cancelQueries({ queryKey: ["notifications", user?.id] });
       client.setQueryData(
-        ["notifications"],
-        data.map((item) => (item.id === id ? { ...item, read: true } : item)),
+        ["notifications", user?.id],
+        (current) => current
+          ? {
+              ...current,
+              items: current.items.map((item) =>
+                item.id === id ? { ...item, read: true } : item,
+              ),
+              unreadCount: Math.max(0, current.unreadCount - 1),
+            }
+          : current,
       );
     },
     onSettled: () => client.invalidateQueries({ queryKey: ["notifications"] }),
@@ -86,72 +95,4 @@ export function NotificationsPage() {
     </div>
   );
 }
-export function ProfilePage() {
-  const { user } = useAuth();
-  return (
-    <div className="page page--narrow">
-      <PageHeader
-        eyebrow="YOUR ACCOUNT"
-        title="Profile"
-        description="Manage your details and see the trust you’ve built."
-      />
-      <section className="profile-hero">
-        <span className="profile-avatar">
-          {user?.name
-            .split(" ")
-            .map((p) => p[0])
-            .join("")}
-        </span>
-        <div>
-          <h2>{user?.name}</h2>
-          <p>
-            {user?.email} • {user?.phone}
-          </p>
-          <Badge tone="green">
-            <ShieldIcon />
-            Identity verified
-          </Badge>
-        </div>
-        <Button variant="secondary">Edit profile</Button>
-      </section>
-      <div className="stats-grid profile-stats">
-        <Card>
-          <small>Community rating</small>
-          <strong>★ {user?.rating}</strong>
-          <span>From 10 member ratings</span>
-        </Card>
-        <Card>
-          <small>Completed cycles</small>
-          <strong>{user?.completedCycles}</strong>
-          <span>Strong saving history</span>
-        </Card>
-        <Card>
-          <small>On-time payments</small>
-          <strong>98%</strong>
-          <span>49 of 50 payments</span>
-        </Card>
-      </div>
-      <Card>
-        <h2>Account details</h2>
-        <dl className="account-details">
-          <div>
-            <dt>Full name</dt>
-            <dd>{user?.name}</dd>
-          </div>
-          <div>
-            <dt>Email address</dt>
-            <dd>{user?.email}</dd>
-          </div>
-          <div>
-            <dt>Phone number</dt>
-            <dd>{user?.phone}</dd>
-          </div>
-          <div>
-            <dt>Bank account</dt>
-            <dd>GTBank •••• 8842</dd>
-          </div>
-        </dl>
-      </Card>
-    </div>
-  );
-}
+export { ProfilePage } from "../features/profile/profile-page";

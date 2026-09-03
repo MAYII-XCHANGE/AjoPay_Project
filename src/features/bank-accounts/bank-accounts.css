@@ -1,0 +1,70 @@
+.bank-accounts-card { margin-top: 18px; }
+.bank-accounts-card__head { display: grid; grid-template-columns: 42px minmax(0, 1fr) auto; align-items: center; gap: 14px; }
+.bank-accounts-card__head > span, .bank-accounts-card__bank { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 11px; color: #286b58; background: #edf5f1; }
+.bank-accounts-card__head svg, .bank-accounts-card__bank svg { width: 19px; }
+.bank-accounts-card__head h2 { margin: 0; font-size: 17px; }
+.bank-accounts-card__head p { margin: 4px 0 0; color: #71827c; font-size: 11px; }
+.bank-accounts-card__head .button svg { width: 15px; }
+.bank-accounts-card__list { display: grid; gap: 10px; margin-top: 22px; padding-top: 18px; border-top: 1px solid #e5ebe8; }
+.bank-accounts-card__list article { min-height: 82px; padding: 13px 14px; display: grid; grid-template-columns: 42px minmax(0, 1fr) auto; align-items: center; gap: 13px; border: 1px solid #e1e8e5; border-radius: 12px; background: #fbfcfb; }
+.bank-accounts-card__list article > div:nth-child(2) { display: grid; gap: 4px; }
+.bank-accounts-card__list article > div:nth-child(2) > div { display: flex; align-items: center; gap: 8px; }
+.bank-accounts-card__list b { color: #23453b; font-size: 12px; }
+.bank-accounts-card__list strong { font-size: 13px; letter-spacing: .4px; }
+.bank-accounts-card__list small { color: #7d8d87; font-size: 9px; }
+.bank-accounts-card__actions { display: flex; align-items: center; gap: 7px; }
+.bank-accounts-card__actions button { min-height: 34px; padding: 0 9px; border: 0; border-radius: 8px; color: #286b58; background: transparent; font-size: 10px; font-weight: 800; }
+.bank-accounts-card__actions button:hover { background: #eaf3ef; }
+.bank-accounts-card__actions button.danger { width: 34px; padding: 0; display: grid; place-items: center; color: #a43b3b; }
+.bank-accounts-card__actions button svg { width: 15px; }
+.bank-accounts-card__empty { margin-top: 22px; padding: 23px; display: grid; grid-template-columns: 42px minmax(0, 1fr) auto; align-items: center; gap: 13px; border: 1px dashed #ccd9d4; border-radius: 12px; background: #f8faf9; }
+.bank-accounts-card__empty > svg { width: 24px; color: #759087; }
+.bank-accounts-card__empty b { font-size: 13px; }
+.bank-accounts-card__empty p { margin: 4px 0 0; color: #758680; font-size: 10px; }
+.bank-account-form { display: grid; gap: 17px; padding-top: 18px; }
+.bank-account-form__intro { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 12px; align-items: center; }
+.bank-account-form__intro > span { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 50%; color: #286b58; background: #e9f4ef; }
+.bank-account-form__intro h3 { margin: 0 0 4px; font-size: 14px; }
+.bank-account-form__intro p { margin: 0; color: #71827c; font-size: 10px; }
+.bank-account-form > label { display: grid; gap: 7px; color: #354e47; font-size: 12px; font-weight: 750; }
+.bank-account-form input, .bank-account-form select { width: 100%; height: 47px; padding: 0 13px; border: 1px solid #d9e2de; border-radius: 9px; outline: none; color: #173f35; background: #fff; }
+.bank-account-form input:focus, .bank-account-form select:focus { border-color: #3d7f6d; box-shadow: 0 0 0 3px rgba(61, 127, 109, .12); }
+.bank-account-form label > small { justify-self: end; color: #87968f; font-size: 9px; }
+.bank-account-form__resolve { width: 100%; }
+.bank-account-form__name { padding: 13px; display: grid; grid-template-columns: 32px minmax(0, 1fr); align-items: center; gap: 10px; border-radius: 10px; color: #71827c; background: #f2f6f4; }
+.bank-account-form__name > span { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 50%; background: #e3ebe7; }
+.bank-account-form__name svg { width: 15px; }
+.bank-account-form__name div { display: grid; gap: 3px; }
+.bank-account-form__name small { font-size: 8px; letter-spacing: 1px; }
+.bank-account-form__name b { color: #314d45; font-size: 12px; }
+.bank-account-form__name.is-ready { color: #27705b; background: #eaf6f0; }
+.bank-account-form__notice { margin: 0; padding: 11px; display: flex; align-items: flex-start; gap: 8px; border-radius: 9px; color: #76591e; background: #fff7e5; font-size: 9px; line-height: 1.55; }
+.bank-account-form__notice svg { width: 14px; flex: 0 0 auto; }
+.bank-account-form__check { display: flex !important; grid-template-columns: none; align-items: center; gap: 9px !important; }
+.bank-account-form__check input { width: 16px; height: 16px; }
+.bank-account-form__actions, .bank-account-remove > div { display: flex; justify-content: flex-end; gap: 9px; }
+.bank-account-remove { display: grid; gap: 18px; padding-top: 20px; }
+.bank-account-remove > span { width: 46px; height: 46px; margin: auto; display: grid; place-items: center; border-radius: 50%; color: #a83c3c; background: #fbe9e9; }
+.bank-account-remove > span svg { width: 21px; }
+.bank-account-remove > p { margin: 0; color: #697a74; font-size: 12px; line-height: 1.6; text-align: center; }
+.profile-v2__stack > .bank-accounts-card { margin-top: 0; }
+.withdrawal-account-empty { padding: 14px; display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; align-items: center; gap: 11px; border: 1px dashed #ccd9d4; border-radius: 10px; background: #f8faf9; }
+.withdrawal-account-empty > svg { width: 21px; color: #527a6e; }
+.withdrawal-account-empty div { display: grid; gap: 3px; }
+.withdrawal-account-empty b { color: #29483f; font-size: 11px; }
+.withdrawal-account-empty small { color: #758680; font-size: 9px; line-height: 1.45; }
+
+@media (max-width: 600px) {
+  .bank-accounts-card__head, .bank-accounts-card__empty { grid-template-columns: 42px minmax(0, 1fr); }
+  .bank-accounts-card__head .button, .bank-accounts-card__empty .button { grid-column: 1 / -1; width: 100%; }
+  .bank-accounts-card__list article { grid-template-columns: 38px minmax(0, 1fr); align-items: start; }
+  .bank-accounts-card__bank { width: 38px; height: 38px; }
+  .bank-accounts-card__actions { grid-column: 2; justify-content: flex-start; }
+  .withdrawal-account-empty { grid-template-columns: 32px minmax(0, 1fr); }
+  .withdrawal-account-empty .button { grid-column: 1 / -1; width: 100%; }
+}
+
+@media (max-width: 420px) {
+  .bank-account-form__actions, .bank-account-remove > div { flex-direction: column-reverse; }
+  .bank-account-form__actions .button, .bank-account-remove .button { width: 100%; }
+}

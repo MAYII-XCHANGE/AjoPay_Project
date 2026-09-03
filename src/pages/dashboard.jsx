@@ -15,35 +15,40 @@ import { Badge, Card, Skeleton } from "../components/ui";
 import { AjoCard } from "../features/ajo/ajo-card";
 import { useAuth } from "../contexts/auth-context";
 import { formatCurrency } from "../utils/formatters";
+import { useTranslation } from "react-i18next";
 export function DashboardPage() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const wallet = useQuery({ queryKey: ["wallet"], queryFn: mockApi.wallet });
-  const ajos = useQuery({ queryKey: ["ajos"], queryFn: mockApi.getAjos });
+  const ajos = useQuery({
+    queryKey: ["ajos", user?.id],
+    queryFn: () => mockApi.getAjos(user?.id),
+  });
   const transactions = useQuery({
-    queryKey: ["transactions"],
-    queryFn: mockApi.transactions,
+    queryKey: ["transactions", "ALL"],
+    queryFn: () => mockApi.transactions("ALL"),
   });
   const active = ajos.data?.filter((ajo) => ajo.joined) ?? [];
   return (
     <div className="page dashboard">
       <header className="welcome">
         <div>
-          <span className="eyebrow">WEDNESDAY, 2 SEPTEMBER</span>
+          <span className="eyebrow">{t("dashboard.date")}</span>
           <h1>
-            Good afternoon, {user?.name.split(" ")[0]} <span>👋🏾</span>
+            {t("dashboard.greeting", { name: user?.name.split(" ")[0] })} <span>👋🏾</span>
           </h1>
-          <p>Here’s how your savings are doing today.</p>
+          <p>{t("dashboard.summary")}</p>
         </div>
         <Link to="/ajos/create" className="button button--primary">
           <PlusIcon />
-          Create an Ajo
+          {t("dashboard.createAjo")}
         </Link>
       </header>
       <section className="stats-grid">
         <Card className="balance-card balance-card--main">
           <span>
             <WalletIcon />
-            Available balance
+            {t("dashboard.availableBalance")}
           </span>
           {wallet.isLoading ? (
             <Skeleton className="skeleton--amount" />
@@ -51,16 +56,16 @@ export function DashboardPage() {
             <strong>{formatCurrency(wallet.data?.available ?? 0)}</strong>
           )}
           <div>
-            <small>Ready to withdraw</small>
+            <small>{t("dashboard.readyWithdraw")}</small>
             <Link to="/wallet">
-              View wallet <ArrowIcon />
+              {t("dashboard.viewWallet")} <ArrowIcon />
             </Link>
           </div>
         </Card>
         <Card className="balance-card">
           <span>
             <UsersIcon />
-            Ajo balance
+            {t("dashboard.ajoBalance")}
           </span>
           {wallet.isLoading ? (
             <Skeleton className="skeleton--amount" />
@@ -68,7 +73,7 @@ export function DashboardPage() {
             <strong>{formatCurrency(wallet.data?.ajoBalance ?? 0)}</strong>
           )}
           <div>
-            <small>Across {active.length || 1} active Ajos</small>
+            <small>{t("dashboard.acrossAjos", { count: active.length || 1 })}</small>
             <i className="positive">
               <TrendIcon />
               +12.5%
@@ -78,22 +83,22 @@ export function DashboardPage() {
         <Card className="balance-card">
           <span>
             <ReceiptIcon />
-            Next contribution
+            {t("dashboard.nextContribution")}
           </span>
           <strong>{formatCurrency(100_000)}</strong>
           <div>
             <small>New Home Fund • 3 days</small>
-            <Badge tone="amber">Due soon</Badge>
+            <Badge tone="amber">{t("dashboard.dueSoon")}</Badge>
           </div>
         </Card>
       </section>
       <div className="section-title">
         <div>
-          <h2>Your active Ajos</h2>
-          <p>Keep track of your ongoing savings circles.</p>
+          <h2>{t("dashboard.activeAjos")}</h2>
+          <p>{t("dashboard.activeAjosText")}</p>
         </div>
         <Link to="/my-ajos">
-          View all <ArrowIcon />
+          {t("dashboard.viewAll")} <ArrowIcon />
         </Link>
       </div>
       <div className="ajo-grid">
@@ -110,11 +115,11 @@ export function DashboardPage() {
         <Card>
           <div className="section-title section-title--compact">
             <div>
-              <h2>Recent activity</h2>
-              <p>Your latest wallet movements.</p>
+              <h2>{t("dashboard.recentActivity")}</h2>
+              <p>{t("dashboard.recentActivityText")}</p>
             </div>
             <Link to="/transactions">
-              See all <ArrowIcon />
+              {t("dashboard.seeAll")} <ArrowIcon />
             </Link>
           </div>
           <div className="activity-list">
@@ -138,14 +143,14 @@ export function DashboardPage() {
           </div>
         </Card>
         <Card className="quick-actions">
-          <h2>Quick actions</h2>
+          <h2>{t("dashboard.quickActions")}</h2>
           <Link to="/find-ajo">
             <span>
               <SearchIcon />
             </span>
             <div>
-              <b>Find an Ajo</b>
-              <small>Browse trusted savings circles</small>
+              <b>{t("dashboard.findAjo")}</b>
+              <small>{t("dashboard.findAjoText")}</small>
             </div>
             <ArrowIcon />
           </Link>
@@ -154,8 +159,8 @@ export function DashboardPage() {
               <WalletIcon />
             </span>
             <div>
-              <b>Fund your wallet</b>
-              <small>Add money for contributions</small>
+              <b>{t("dashboard.fundWallet")}</b>
+              <small>{t("dashboard.fundWalletText")}</small>
             </div>
             <ArrowIcon />
           </Link>
@@ -164,8 +169,8 @@ export function DashboardPage() {
               <BellIcon />
             </span>
             <div>
-              <b>Check notifications</b>
-              <small>Stay on top of every update</small>
+              <b>{t("dashboard.checkNotifications")}</b>
+              <small>{t("dashboard.checkNotificationsText")}</small>
             </div>
             <ArrowIcon />
           </Link>

@@ -5,7 +5,6 @@ import { mockApi } from "../api/mock-service";
 import {
   CheckIcon,
   PlusIcon,
-  SearchIcon,
   ShieldIcon,
 } from "../components/icons";
 import {
@@ -17,6 +16,7 @@ import {
   Skeleton,
 } from "../components/ui";
 import { AjoCard } from "../features/ajo/ajo-card";
+import { FindAjo, JoinRequestStatus } from "../features/find-ajo/find-ajo";
 import { useAuth } from "../contexts/auth-context";
 import {
   formatCurrency,
@@ -24,66 +24,7 @@ import {
   frequencyLabel,
 } from "../utils/formatters";
 export function FindAjoPage({ publicView = false }) {
-  const [search, setSearch] = useState("");
-  const [frequency, setFrequency] = useState("ALL");
-  const { data = [], isLoading } = useQuery({
-    queryKey: ["ajos"],
-    queryFn: mockApi.getAjos,
-  });
-  const filtered = data.filter(
-    (ajo) =>
-      ajo.status === "OPEN" &&
-      ajo.name.toLowerCase().includes(search.toLowerCase()) &&
-      (frequency === "ALL" || ajo.frequency === frequency),
-  );
-  const content = (
-    <>
-      <PageHeader
-        eyebrow="DISCOVER"
-        title="Find the right Ajo for you"
-        description="Explore trusted savings circles that fit your goals and budget."
-        action={
-          !publicView && (
-            <Link to="/ajos/create" className="button button--primary">
-              <PlusIcon />
-              Create an Ajo
-            </Link>
-          )
-        }
-      />
-      <div className="filter-bar">
-        <label>
-          <SearchIcon />
-          <input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search by name or goal"
-          />
-        </label>
-        <select
-          value={frequency}
-          onChange={(event) => setFrequency(event.target.value)}
-          aria-label="Filter by frequency"
-        >
-          <option value="ALL">All frequencies</option>
-          <option value="WEEKLY">Weekly</option>
-          <option value="MONTHLY">Monthly</option>
-          <option value="DAILY">Daily</option>
-        </select>
-      </div>
-      <div className="results-head">
-        <span>{filtered.length} Ajos available</span>
-        <small>All circles are reviewed by our team</small>
-      </div>
-      <div className="ajo-grid ajo-grid--three">
-        {isLoading
-          ? [1, 2, 3].map((n) => (
-              <Skeleton className="skeleton--card" key={n} />
-            ))
-          : filtered.map((ajo) => <AjoCard ajo={ajo} key={ajo.id} />)}
-      </div>
-    </>
-  );
+  const content = <FindAjo publicView={publicView} />;
   if (publicView)
     return (
       <div className="public-list">
@@ -105,9 +46,10 @@ export function FindAjoPage({ publicView = false }) {
 }
 export function MyAjosPage() {
   const [tab, setTab] = useState("active");
+  const { user } = useAuth();
   const { data = [], isLoading } = useQuery({
-    queryKey: ["user-ajos"],
-    queryFn: mockApi.getAjos,
+    queryKey: ["ajos", user?.id],
+    queryFn: () => mockApi.getAjos(user?.id),
   });
   const mine =
     tab === "created"
@@ -157,19 +99,96 @@ export function AjoDetailPage() {
   const { ajoId = "" } = useParams();
   const [joinOpen, setJoinOpen] = useState(false);
   const [slots, setSlots] = useState(1);
+  const [preferredPosition, setPreferredPosition] = useState("ANY");
   const [success, setSuccess] = useState(false);
+  const [joinError, setJoinError] = useState("");
+  const [exitOpen, setExitOpen] = useState(false);
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const { data: ajo, isLoading } = useQuery({
-    queryKey: ["ajo", ajoId],
-    queryFn: () => mockApi.getAjo(ajoId),
+    queryKey: ["ajo", ajoId, user?.id],
+    queryFn: () => mockApi.getAjo(ajoId, user?.id),
   });
+  const { data: requests = [] } = useQuery({
+    queryKey: ["join-requests", "user", user?.id],
+    queryFn: () => mockApi.getJoinRequests({ userId: user.id }),
+  });
+  const creatorFollow = useQuery({
+    queryKey: ["followers", ajo?.creatorId, user?.id],
+    queryFn: () => mockApi.getFollowerSummary(ajo.creatorId, user.id),
+    enabled: Boolean(ajo && user && ajo.creatorId !== user.id),
+  });
+  const toggleFollow = useMutation({
+    mutationFn: () =>
+      creatorFollow.data?.isFollowing
+        ? mockApi.unfollowUser(ajo.creatorId, user.id)
+        : mockApi.followUser(ajo.creatorId, user.id),
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: ["followers", ajo?.creatorId, user?.id],
+      }),
+  });
+  const currentRequest = requests
+    .filter((request) => request.ajoId === ajoId)
+    .sort(
+      (left, right) =>
+        new Date(right.requestedAt) - new Date(left.requestedAt),
+    )[0];
   const join = useMutation({
-    mutationFn: () => mockApi.requestToJoin(ajoId, slots),
+    mutationFn: () =>
+      mockApi.requestToJoin({
+        ajoId,
+        user,
+        slots,
+        preferredPosition:
+          preferredPosition === "ANY" ? null : preferredPosition,
+      }),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["ajo", ajoId] });
-      await queryClient.invalidateQueries({ queryKey: ["ajos"] });
+      await queryClient.invalidateQueries({ queryKey: ["join-requests"] });
       setSuccess(true);
+    },
+    onError: (error) =>
+      setJoinError(
+        error.message || "We couldn’t send your request. Please try again.",
+      ),
+  });
+  const cancelRequest = useMutation({
+    mutationFn: () => mockApi.cancelJoinRequest(currentRequest.id, user.id),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["join-requests"] });
+      setJoinOpen(false);
+      setJoinError("");
+    },
+    onError: (error) =>
+      setJoinError(error.message || "We couldn’t cancel your request."),
+  });
+  const contributionQuery = useQuery({
+    queryKey: ["cycle-contributions", ajo?.currentCycleId],
+    queryFn: () => mockApi.getCycleContributions(ajo.currentCycleId),
+    enabled: Boolean(ajo?.currentCycleId && ajo?.status === "ACTIVE"),
+  });
+  const currentContribution = contributionQuery.data?.find(
+    (contribution) => contribution.participant.id === user.id,
+  );
+  const payContribution = useMutation({
+    mutationFn: () =>
+      mockApi.payContribution(currentContribution.id, user.id),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["cycle-contributions"] }),
+        queryClient.invalidateQueries({ queryKey: ["wallet"] }),
+        queryClient.invalidateQueries({ queryKey: ["transactions"] }),
+      ]);
+    },
+  });
+  const exitAjo = useMutation({
+    mutationFn: () => mockApi.exitAjo(ajoId, user.id),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["ajo", ajoId] }),
+        queryClient.invalidateQueries({ queryKey: ["ajos"] }),
+      ]);
+      setExitOpen(false);
     },
   });
   if (isLoading || !ajo)
@@ -192,9 +211,21 @@ export function AjoDetailPage() {
           </Badge>
           <h1>{ajo.name}</h1>
           <p>{ajo.description}</p>
-          <span>
-            Created by <b>{ajo.creator}</b> • ★ 4.9
-          </span>
+          <div className="creator-follow">
+            <span>
+              Created by <b>{ajo.creator}</b> • ★ 4.9
+              {creatorFollow.data && ` • ${creatorFollow.data.count} followers`}
+            </span>
+            {!isOwner && (
+              <Button
+                variant="secondary"
+                onClick={() => toggleFollow.mutate()}
+                disabled={toggleFollow.isPending}
+              >
+                {creatorFollow.data?.isFollowing ? "Following" : "Follow"}
+              </Button>
+            )}
+          </div>
         </div>
         <Card>
           <small>Contribution</small>
@@ -207,15 +238,28 @@ export function AjoDetailPage() {
             >
               Manage this Ajo
             </Link>
-          ) : ajo.joined ? (
+          ) : ajo.joined || currentRequest?.status === "ACCEPTED" ? (
             <Button disabled>
-              <CheckIcon /> Request submitted
+              <CheckIcon /> Member
+            </Button>
+          ) : currentRequest?.status === "PENDING" ? (
+            <Button variant="secondary" onClick={() => setJoinOpen(true)}>
+              Request sent
             </Button>
           ) : (
-            <Button onClick={() => setJoinOpen(true)} disabled={!available}>
-              Request to join
+            <Button
+              onClick={() => {
+                setJoinError("");
+                setJoinOpen(true);
+              }}
+              disabled={!available}
+            >
+              {currentRequest?.status === "DECLINED"
+                ? "Request again"
+                : "Request to join"}
             </Button>
           )}
+          <JoinRequestStatus request={currentRequest} isMember={ajo.joined} />
           <small>
             <ShieldIcon />
             Your money stays protected in your wallet.
@@ -238,7 +282,11 @@ export function AjoDetailPage() {
             </div>
             <div>
               <dt>Starts</dt>
-              <dd>{formatDate(ajo.startDate)}</dd>
+              <dd>
+                {ajo.startDate
+                  ? formatDate(ajo.startDate)
+                  : "Set when the cycle starts"}
+              </dd>
             </div>
             <div>
               <dt>Frequency</dt>
@@ -287,13 +335,52 @@ export function AjoDetailPage() {
           </ol>
         </Card>
       </div>
+      {ajo.status === "ACTIVE" && currentContribution && (
+        <Card className="ajo-contribution-card">
+          <span className="ajo-contribution-card__icon">
+            {currentContribution.status === "PAID" ? <CheckIcon /> : "₦"}
+          </span>
+          <div>
+            <small>CURRENT CYCLE CONTRIBUTION</small>
+            <h2>{formatCurrency(currentContribution.amount)}</h2>
+            <p>
+              Due {formatDate(currentContribution.dueDate)} · Paid from your
+              Ajo wallet
+            </p>
+          </div>
+          <Badge tone={currentContribution.status === "PAID" ? "green" : "amber"}>
+            {currentContribution.status.toLowerCase()}
+          </Badge>
+          {currentContribution.status === "DUE" && (
+            <Button
+              onClick={() => payContribution.mutate()}
+              disabled={payContribution.isPending}
+            >
+              {payContribution.isPending ? "Paying…" : "Pay contribution"}
+            </Button>
+          )}
+        </Card>
+      )}
+      {ajo.status === "ACTIVE" && ajo.joined && !isOwner && (
+        <div className="ajo-member-actions">
+          <div><b>Need to leave this cycle?</b><span>Exiting stops future contribution periods and cannot be undone here.</span></div>
+          <Button variant="danger" onClick={() => setExitOpen(true)}>Exit Ajo</Button>
+        </div>
+      )}
       <Modal
         open={joinOpen}
         onClose={() => {
           setJoinOpen(false);
           setSuccess(false);
+          setJoinError("");
         }}
-        title={success ? "Request sent" : `Join ${ajo.name}`}
+        title={
+          success
+            ? "Request sent"
+            : currentRequest?.status === "PENDING"
+              ? "Pending join request"
+              : `Join ${ajo.name}`
+        }
       >
         {success ? (
           <div className="success-panel">
@@ -307,6 +394,30 @@ export function AjoDetailPage() {
             </p>
             <Button onClick={() => setJoinOpen(false)}>Done</Button>
           </div>
+        ) : currentRequest?.status === "PENDING" ? (
+          <div className="confirm-panel">
+            <p>
+              {ajo.creator} is reviewing your request. You are not a member
+              until the request is accepted.
+            </p>
+            {joinError && (
+              <div className="form-error" role="alert">
+                {joinError}
+              </div>
+            )}
+            <div>
+              <Button variant="secondary" onClick={() => setJoinOpen(false)}>
+                Keep request
+              </Button>
+              <Button
+                variant="danger"
+                onClick={() => cancelRequest.mutate()}
+                disabled={cancelRequest.isPending}
+              >
+                {cancelRequest.isPending ? "Cancelling…" : "Cancel request"}
+              </Button>
+            </div>
+          </div>
         ) : (
           <form
             className="modal-form"
@@ -319,6 +430,11 @@ export function AjoDetailPage() {
               Choose the number of slots you want. You won’t be charged until
               the circle starts.
             </p>
+            {joinError && (
+              <div className="form-error" role="alert">
+                {joinError}
+              </div>
+            )}
             <label>
               Number of slots
               <select
@@ -334,10 +450,17 @@ export function AjoDetailPage() {
             </label>
             <label>
               Preferred payout position
-              <select>
-                <option>Any available position</option>
+              <select
+                value={preferredPosition}
+                onChange={(event) =>
+                  setPreferredPosition(event.target.value)
+                }
+              >
+                <option value="ANY">Any available position</option>
                 {Array.from({ length: ajo.slotCount }, (_, index) => (
-                  <option key={index + 1}>Position {index + 1}</option>
+                  <option value={index + 1} key={index + 1}>
+                    Position {index + 1}
+                  </option>
                 ))}
               </select>
             </label>
@@ -348,38 +471,51 @@ export function AjoDetailPage() {
                 {frequencyLabel[ajo.frequency].toLowerCase()}
               </b>
             </div>
+            <p className="secure-note">
+              <ShieldIcon /> Your request must be accepted by the group admin
+              before you become a member.
+            </p>
             <Button disabled={join.isPending} type="submit">
               {join.isPending ? "Sending request…" : "Send request"}
             </Button>
           </form>
         )}
       </Modal>
+      <Modal open={exitOpen} onClose={() => !exitAjo.isPending && setExitOpen(false)} title={`Exit ${ajo.name}?`}>
+        <div className="confirm-panel">
+          <p>You will be removed from future contribution periods for this active cycle. Confirm only if you understand the effect on your payout.</p>
+          {exitAjo.isError && <div className="form-error" role="alert">{exitAjo.error.message}</div>}
+          <div><Button variant="secondary" onClick={() => setExitOpen(false)} disabled={exitAjo.isPending}>Stay in Ajo</Button><Button variant="danger" onClick={() => exitAjo.mutate()} disabled={exitAjo.isPending}>{exitAjo.isPending ? "Exiting…" : "Confirm exit"}</Button></div>
+        </div>
+      </Modal>
     </div>
   );
 }
 export function CreateAjoPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [error, setError] = useState("");
   const [values, setValues] = useState({
     name: "",
     amount: "",
     frequency: "MONTHLY",
     slots: "",
-    date: "",
     category: "Business",
     description: "",
   });
   const mutation = useMutation({
     mutationFn: () =>
-      mockApi.createAjo({
-        name: values.name,
-        description: values.description || "A trusted savings circle.",
-        contributionAmount: Number(values.amount),
-        frequency: values.frequency,
-        slotCount: Number(values.slots),
-        startDate: values.date,
-        category: values.category,
-      }),
+      mockApi.createAjo(
+        {
+          name: values.name,
+          description: values.description || "A trusted savings circle.",
+          contributionAmount: Number(values.amount),
+          frequency: values.frequency,
+          slotCount: Number(values.slots),
+          category: values.category,
+        },
+        user,
+      ),
     onSuccess: (ajo) => navigate(`/ajos/${ajo.id}`),
   });
   const submit = (event) => {
@@ -387,14 +523,9 @@ export function CreateAjoPage() {
     if (
       !values.name ||
       Number(values.amount) <= 0 ||
-      Number(values.slots) < 2 ||
-      !values.date
+      Number(values.slots) < 2
     ) {
       setError("Please complete all required fields with valid values.");
-      return;
-    }
-    if (new Date(values.date) < new Date()) {
-      setError("The start date must be in the future.");
       return;
     }
     mutation.mutate();
@@ -479,14 +610,6 @@ export function CreateAjoPage() {
                 min="2"
                 max="50"
                 placeholder="10"
-              />
-            </label>
-            <label>
-              First contribution date *
-              <input
-                type="date"
-                value={values.date}
-                onChange={(e) => set("date", e.target.value)}
               />
             </label>
           </div>

@@ -1318,6 +1318,21 @@ p {
   font-size: 12px;
   color: #6f817a;
 }
+.creator-follow {
+  margin-top: 13px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.creator-follow > span {
+  color: #6f817a;
+  font-size: 11px;
+}
+.creator-follow .button {
+  min-height: 32px;
+  padding: 0 11px;
+  font-size: 9px;
+}
 .detail-hero .card {
   display: flex;
   flex-direction: column;
@@ -1379,6 +1394,42 @@ p {
   display: grid;
   gap: 18px;
 }
+.ajo-contribution-card {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 14px;
+}
+.ajo-contribution-card__icon {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 11px;
+  color: #286f5b;
+  background: #eaf4ef;
+  font-weight: 850;
+}
+.ajo-contribution-card__icon svg { width: 19px; }
+.ajo-contribution-card > div { display: grid; gap: 3px; }
+.ajo-contribution-card small { color: #84938d; font-size: 8px; font-weight: 850; letter-spacing: 1px; }
+.ajo-contribution-card h2 { margin: 0; color: #29483f; font-size: 19px; }
+.ajo-contribution-card p { margin: 0; color: #7a8b85; font-size: 9px; }
+.ajo-member-actions {
+  margin-top: 18px;
+  padding: 16px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  border: 1px solid #efd7d3;
+  border-radius: 12px;
+  background: #fff7f5;
+}
+.ajo-member-actions > div { display: grid; gap: 4px; }
+.ajo-member-actions b { color: #713f38; font-size: 11px; }
+.ajo-member-actions span { color: #8a706c; font-size: 9px; }
 .timeline li {
   display: flex;
   gap: 13px;
@@ -1797,6 +1848,30 @@ p {
   color: #b5cac3;
   font-size: 12px;
 }
+.wallet-hero__label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.wallet-hero__label button {
+  min-height: 30px;
+  padding: 0 9px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid rgba(255, 255, 255, .18);
+  border-radius: 999px;
+  color: #d6e4df;
+  background: rgba(255, 255, 255, .08);
+  font-size: 9px;
+  font-weight: 750;
+}
+.wallet-hero__label button:hover {
+  background: rgba(255, 255, 255, .14);
+}
+.wallet-hero__label button svg {
+  width: 14px;
+}
 .wallet-hero strong {
   font-size: 40px;
   margin: 9px 0 3px;
@@ -1864,6 +1939,135 @@ p {
   color: #75857f;
   font-size: 12px;
 }
+.funding-account {
+  padding-top: 17px;
+  display: grid;
+  gap: 17px;
+}
+.funding-account__intro {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+}
+.funding-account__intro > span {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 11px;
+  color: #286b58;
+  background: #eaf4ef;
+}
+.funding-account__intro svg {
+  width: 20px;
+}
+.funding-account__intro h3 {
+  margin: 0 0 4px;
+  color: #29493f;
+  font-size: 13px;
+}
+.funding-account__intro p {
+  margin: 0;
+  color: #758680;
+  font-size: 10px;
+}
+.funding-account dl {
+  margin: 0;
+  display: grid;
+  border: 1px solid #e0e8e4;
+  border-radius: 12px;
+  overflow: hidden;
+}
+.funding-account dl > div {
+  min-height: 60px;
+  padding: 11px 13px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 3px 10px;
+  border-bottom: 1px solid #e8eeeb;
+}
+.funding-account dl > div:last-child {
+  border: 0;
+}
+.funding-account dt {
+  grid-column: 1 / -1;
+  color: #83928c;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: .7px;
+  text-transform: uppercase;
+}
+.funding-account dd {
+  margin: 0;
+  color: #29483f;
+  font-size: 12px;
+  font-weight: 800;
+}
+.funding-account__number dd {
+  font-size: 17px;
+  letter-spacing: 1px;
+}
+.funding-account__number button {
+  grid-column: 2;
+  grid-row: 2;
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid #cfe0d9;
+  border-radius: 7px;
+  color: #2f725f;
+  background: #edf6f2;
+  font-size: 9px;
+  font-weight: 800;
+}
+.funding-account__copied {
+  padding: 9px 11px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border-radius: 8px;
+  color: #286b58;
+  background: #eaf6f0;
+  font-size: 10px;
+}
+.funding-account__copied svg {
+  width: 14px;
+}
+.funding-account > .button {
+  width: 100%;
+}
+.wallet-withdrawals {
+  margin-top: 18px;
+}
+.wallet-withdrawals__list {
+  display: grid;
+}
+.wallet-withdrawals__list article {
+  min-height: 64px;
+  padding: 12px 0;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 11px;
+  border-bottom: 1px solid #e8eeeb;
+}
+.wallet-withdrawals__list article:last-child { border: 0; }
+.wallet-withdrawals__list article > span:first-child {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  color: #326f5e;
+  background: #ebf4f0;
+}
+.wallet-withdrawals__list article > span svg { width: 16px; }
+.wallet-withdrawals__list article > div { display: grid; gap: 3px; }
+.wallet-withdrawals__list b { color: #314f46; font-size: 11px; }
+.wallet-withdrawals__list small { color: #84928d; font-size: 9px; }
+.wallet-withdrawals__list strong { min-width: 95px; color: #3e574f; font-size: 12px; text-align: right; }
+.wallet-withdrawals__empty { margin: 18px 0 0; color: #7b8a85; font-size: 11px; }
 .filter-bar--simple {
   padding: 0;
   border: 0;
@@ -3720,4 +3924,15 @@ p {
   color: #71837d;
   font-size: 12px;
   line-height: 1.7;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }

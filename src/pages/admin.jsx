@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { mockApi } from "../api/mock-service";
 import {
   CheckIcon,
@@ -16,6 +16,7 @@ import {
   EmptyState,
   Modal,
   PageHeader,
+  Skeleton,
 } from "../components/ui";
 import { formatCurrency, formatDate } from "../utils/formatters";
 const users = [
@@ -26,9 +27,23 @@ const users = [
 ];
 export function AdminOverviewPage() {
   const { data: txs = [] } = useQuery({
-    queryKey: ["transactions"],
-    queryFn: mockApi.transactions,
+    queryKey: ["transactions", "ALL"],
+    queryFn: () => mockApi.transactions("ALL"),
   });
+  const { data: withdrawals = [] } = useQuery({
+    queryKey: ["admin-withdrawals"],
+    queryFn: mockApi.getAdminWithdrawals,
+  });
+  const unsettledWithdrawals = withdrawals.filter((request) =>
+    ["PENDING", "PROCESSING"].includes(request.status),
+  );
+  const { data: supportIssues = [] } = useQuery({
+    queryKey: ["support-issues", "admin"],
+    queryFn: mockApi.getAdminSupportIssues,
+  });
+  const unresolvedIssues = supportIssues.filter(
+    (issue) => issue.status !== "RESOLVED",
+  );
   return (
     <>
       <PageHeader
@@ -58,8 +73,8 @@ export function AdminOverviewPage() {
         <Metric
           icon={<ReceiptIcon />}
           label="Pending withdrawals"
-          value="23"
-          note="₦3.8M to process"
+          value={String(unsettledWithdrawals.length)}
+          note={`${formatCurrency(unsettledWithdrawals.reduce((total, request) => total + request.amount, 0), true)} to process`}
           tone="amber"
         />
       </div>
@@ -85,14 +100,14 @@ export function AdminOverviewPage() {
             <span>
               <i className="amber-dot" />
               <span>
-                <b>23 withdrawals</b>
+                <b>{unsettledWithdrawals.length} withdrawals</b>
                 <small>Awaiting processing</small>
               </span>
             </span>
             <span>
               <i className="red-dot" />
               <span>
-                <b>2 system issues</b>
+                <b>{unresolvedIssues.length} system issues</b>
                 <small>Require investigation</small>
               </span>
             </span>
@@ -174,8 +189,8 @@ export function AdminUsersPage() {
 }
 export function AdminAjosPage() {
   const { data = [] } = useQuery({
-    queryKey: ["ajos"],
-    queryFn: mockApi.getAjos,
+    queryKey: ["ajos", "admin"],
+    queryFn: () => mockApi.getAjos(),
   });
   return (
     <>
@@ -243,8 +258,8 @@ function AdminTransactionRows({ rows }) {
 }
 export function AdminTransactionsPage() {
   const { data = [] } = useQuery({
-    queryKey: ["transactions"],
-    queryFn: mockApi.transactions,
+    queryKey: ["transactions", "ALL"],
+    queryFn: () => mockApi.transactions("ALL"),
   });
   return (
     <>
@@ -261,29 +276,29 @@ export function AdminTransactionsPage() {
 }
 export function AdminWithdrawalsPage() {
   const [selected, setSelected] = useState(null);
-  const withdrawals = [
-    {
-      id: "WD-1042",
-      name: "Kemi Adeola",
-      amount: 450000,
-      bank: "Access Bank • 1021",
-      age: "12 min",
-    },
-    {
-      id: "WD-1041",
-      name: "Ibrahim Musa",
-      amount: 180000,
-      bank: "GTBank • 6720",
-      age: "34 min",
-    },
-    {
-      id: "WD-1039",
-      name: "Tolu Akin",
-      amount: 320000,
-      bank: "UBA • 4408",
-      age: "1 hr",
-    },
-  ];
+  const queryClient = useQueryClient();
+  const { data: withdrawals = [], isLoading } = useQuery({
+    queryKey: ["admin-withdrawals"],
+    queryFn: mockApi.getAdminWithdrawals,
+  });
+  const refresh = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["admin-withdrawals"] }),
+      queryClient.invalidateQueries({ queryKey: ["wallet-withdrawals"] }),
+      queryClient.invalidateQueries({ queryKey: ["wallet"] }),
+    ]);
+    setSelected(null);
+  };
+  const initiate = useMutation({
+    mutationFn: mockApi.initiateWithdrawal,
+    onSuccess: refresh,
+  });
+  const confirm = useMutation({
+    mutationFn: ({ id, outcome }) => mockApi.confirmWithdrawal(id, outcome),
+    onSuccess: refresh,
+  });
+  const activeRequest = withdrawals.find((request) => request.id === selected);
+  const busy = initiate.isPending || confirm.isPending;
   return (
     <>
       <PageHeader
@@ -299,7 +314,9 @@ export function AdminWithdrawalsPage() {
             <span>Requested</span>
             <span>Amount</span>
           </div>
-          {withdrawals.map((row) => (
+          {isLoading ? (
+            <Skeleton className="skeleton--table" />
+          ) : withdrawals.map((row) => (
             <button
               className="data-table__row"
               key={row.id}
@@ -307,12 +324,12 @@ export function AdminWithdrawalsPage() {
             >
               <span>
                 <span>
-                  <b>{row.name}</b>
+                  <b>{row.user.name}</b>
                   <small>{row.id}</small>
                 </span>
               </span>
-              <span>{row.bank}</span>
-              <span>{row.age} ago</span>
+              <span>{row.bankAccount.bankName} • {row.bankAccount.accountNumber.slice(-4)}</span>
+              <Badge tone={row.status === "PAID" ? "green" : row.status === "FAILED" ? "red" : "amber"}>{row.status.toLowerCase()}</Badge>
               <strong>{formatCurrency(row.amount)}</strong>
             </button>
           ))}
@@ -325,14 +342,27 @@ export function AdminWithdrawalsPage() {
       >
         <div className="confirm-panel">
           <p>
-            Confirm the provider status before updating this request. This
-            action is recorded in the operations log.
+            {activeRequest?.status === "PENDING"
+              ? "Initiate this request only after beginning the manual bank settlement."
+              : activeRequest?.status === "PROCESSING"
+                ? "Confirm whether the manual settlement was paid. A failed settlement returns the reserved funds to the user."
+                : `This withdrawal is already ${activeRequest?.status.toLowerCase()}.`}
           </p>
           <div>
-            <Button variant="secondary" onClick={() => setSelected(null)}>
-              Keep pending
+            <Button variant="secondary" onClick={() => setSelected(null)} disabled={busy}>
+              Close
             </Button>
-            <Button onClick={() => setSelected(null)}>Mark as processed</Button>
+            {activeRequest?.status === "PENDING" && (
+              <Button onClick={() => initiate.mutate(activeRequest.id)} disabled={busy}>
+                {busy ? "Updating…" : "Mark settlement initiated"}
+              </Button>
+            )}
+            {activeRequest?.status === "PROCESSING" && (
+              <>
+                <Button variant="danger" onClick={() => confirm.mutate({ id: activeRequest.id, outcome: "FAILED" })} disabled={busy}>Settlement failed</Button>
+                <Button onClick={() => confirm.mutate({ id: activeRequest.id, outcome: "PAID" })} disabled={busy}>Confirm paid</Button>
+              </>
+            )}
           </div>
         </div>
       </Modal>

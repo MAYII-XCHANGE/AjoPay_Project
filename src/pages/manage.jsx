@@ -1,22 +1,57 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 import { mockApi } from "../api/mock-service";
 import { CheckIcon, UsersIcon } from "../components/icons";
 import { Badge, Button, Card, Modal, PageHeader } from "../components/ui";
+import { useAuth } from "../contexts/auth-context";
 export function ManageAjoPage() {
   const { ajoId = "" } = useParams();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
   const { data: ajo } = useQuery({
-    queryKey: ["ajo", ajoId],
-    queryFn: () => mockApi.getAjo(ajoId),
+    queryKey: ["ajo", ajoId, user?.id],
+    queryFn: () => mockApi.getAjo(ajoId, user?.id),
   });
   const { data: requests = [] } = useQuery({
     queryKey: ["ajo-requests", ajoId],
-    queryFn: mockApi.requests,
+    queryFn: () => mockApi.getJoinRequests({ ajoId, status: "PENDING" }),
   });
-  const [handled, setHandled] = useState([]);
   const [confirmStart, setConfirmStart] = useState(false);
-  const pending = requests.filter((item) => !handled.includes(item.id));
+  const [notice, setNotice] = useState("");
+  const [startError, setStartError] = useState("");
+  const review = useMutation({
+    mutationFn: ({ requestId, decision }) =>
+      mockApi.reviewJoinRequest(requestId, decision),
+    onSuccess: async (updated) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["ajo-requests", ajoId] }),
+        queryClient.invalidateQueries({ queryKey: ["join-requests"] }),
+        queryClient.invalidateQueries({ queryKey: ["ajo", ajoId] }),
+        queryClient.invalidateQueries({ queryKey: ["ajos"] }),
+        queryClient.invalidateQueries({ queryKey: ["notifications"] }),
+      ]);
+      setNotice(
+        `${updated.user.name} was ${updated.status.toLowerCase()}.`,
+      );
+    },
+  });
+  const pending = requests;
+  const readyToStart =
+    ajo?.status === "OPEN" && ajo?.filledSlots === ajo?.slotCount;
+  const startAjo = useMutation({
+    mutationFn: () => mockApi.startAjo(ajoId),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["ajo", ajoId] }),
+        queryClient.invalidateQueries({ queryKey: ["ajos"] }),
+      ]);
+      setConfirmStart(false);
+      setNotice("The Ajo cycle has started successfully.");
+    },
+    onError: (error) =>
+      setStartError(error.message || "This Ajo could not be started."),
+  });
   return (
     <div className="page">
       <Link to={`/ajos/${ajoId}`} className="back-link">
@@ -35,6 +70,11 @@ export function ManageAjoPage() {
           </Link>
         }
       />
+      {notice && (
+        <div className="success-banner" role="status">
+          <CheckIcon /> {notice}
+        </div>
+      )}
       <section className="stats-grid stats-grid--manage">
         <Card>
           <small>Confirmed slots</small>
@@ -50,8 +90,14 @@ export function ManageAjoPage() {
         </Card>
         <Card>
           <small>Circle status</small>
-          <strong>Open</strong>
-          <span>Accepting members</span>
+          <strong>{ajo?.status || "Loading"}</strong>
+          <span>
+            {readyToStart
+              ? "Ready to start"
+              : ajo?.status === "OPEN"
+                ? "Waiting for all slots to fill"
+                : "Cycle already started"}
+          </span>
         </Card>
       </section>
       <Card>
@@ -85,16 +131,14 @@ export function ManageAjoPage() {
                 <div>
                   <Button
                     variant="secondary"
-                    onClick={() =>
-                      setHandled((items) => [...items, request.id])
-                    }
+                    disabled={review.isPending}
+                    onClick={() => review.mutate({ requestId: request.id, decision: "DECLINED" })}
                   >
                     Decline
                   </Button>
                   <Button
-                    onClick={() =>
-                      setHandled((items) => [...items, request.id])
-                    }
+                    disabled={review.isPending}
+                    onClick={() => review.mutate({ requestId: request.id, decision: "ACCEPTED" })}
                   >
                     Accept
                   </Button>
@@ -117,7 +161,15 @@ export function ManageAjoPage() {
           <b>Ready to begin?</b>
           <span>Finalise the payout order before starting the cycle.</span>
         </div>
-        <Button onClick={() => setConfirmStart(true)}>Start cycle</Button>
+        <Button
+          onClick={() => {
+            setStartError("");
+            setConfirmStart(true);
+          }}
+          disabled={!readyToStart}
+        >
+          {ajo?.status === "ACTIVE" ? "Cycle active" : "Start cycle"}
+        </Button>
       </div>
       <Modal
         open={confirmStart}
@@ -140,12 +192,20 @@ export function ManageAjoPage() {
               The payout order has been reviewed
             </li>
           </ul>
+          {startError && (
+            <div className="form-error" role="alert">
+              {startError}
+            </div>
+          )}
           <div>
             <Button variant="secondary" onClick={() => setConfirmStart(false)}>
               Go back
             </Button>
-            <Button onClick={() => setConfirmStart(false)}>
-              Yes, start cycle
+            <Button
+              onClick={() => startAjo.mutate()}
+              disabled={startAjo.isPending}
+            >
+              {startAjo.isPending ? "Starting…" : "Yes, start cycle"}
             </Button>
           </div>
         </div>
@@ -155,6 +215,7 @@ export function ManageAjoPage() {
 }
 export function OrderPage() {
   const { ajoId = "" } = useParams();
+  const queryClient = useQueryClient();
   const initial = [
     "Mayowa Adeyemi",
     "Amina Yusuf",
@@ -165,6 +226,13 @@ export function OrderPage() {
   ];
   const [members, setMembers] = useState(initial);
   const [saved, setSaved] = useState(false);
+  const saveOrder = useMutation({
+    mutationFn: () => mockApi.setAjoOrder(ajoId, members),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["ajo", ajoId] });
+      setSaved(true);
+    },
+  });
   const move = (index, direction) => {
     const next = [...members];
     const target = index + direction;
@@ -242,7 +310,9 @@ export function OrderPage() {
         <Link to={`/ajos/${ajoId}/manage`} className="button button--secondary">
           Cancel
         </Link>
-        <Button onClick={() => setSaved(true)}>Save payout order</Button>
+        <Button onClick={() => saveOrder.mutate()} disabled={saveOrder.isPending}>
+          {saveOrder.isPending ? "Saving…" : "Save payout order"}
+        </Button>
       </div>
     </div>
   );

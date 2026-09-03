@@ -1,9 +1,12 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { mockApi } from "../api/mock-service";
 import {
   ArrowIcon,
+  BankIcon,
   CheckIcon,
+  EyeIcon,
+  EyeOffIcon,
   ReceiptIcon,
   ShieldIcon,
   TrendIcon,
@@ -17,47 +20,118 @@ import {
   PageHeader,
   Skeleton,
 } from "../components/ui";
+import {
+  AddBankAccountModal,
+  BankAccountsCard,
+} from "../features/bank-accounts/bank-accounts";
+import { maskAccountNumber } from "../features/bank-accounts/bank-account-utils";
+import { useAuth } from "../contexts/auth-context";
 import { formatCurrency, formatDate } from "../utils/formatters";
+import { useTranslation } from "react-i18next";
 export function WalletPage() {
+  const { t, i18n } = useTranslation();
+  const { user } = useAuth();
   const { data, isLoading } = useQuery({
     queryKey: ["wallet"],
     queryFn: mockApi.wallet,
   });
   const [open, setOpen] = useState(false);
+  const [fundingOpen, setFundingOpen] = useState(false);
+  const [copied, setCopied] = useState("");
+  const [balanceVisible, setBalanceVisible] = useState(
+    () => localStorage.getItem("ajopay-balance-visible") !== "false",
+  );
+  const [addAccountOpen, setAddAccountOpen] = useState(false);
   const [amount, setAmount] = useState("");
   const [success, setSuccess] = useState(false);
+  const [selectedAccountId, setSelectedAccountId] = useState("");
+  const accounts = (user?.bankAccounts || []).filter(
+    (account) => account.verified,
+  );
+  const selectedAccount =
+    accounts.find((account) => account.id === selectedAccountId) ||
+    accounts.find((account) => account.isDefault) ||
+    accounts[0] ||
+    null;
+  const fundingAccount = useQuery({
+    queryKey: ["wallet-funding-account", user?.id],
+    queryFn: () => mockApi.fundingAccount(user),
+    enabled: fundingOpen,
+  });
+  const withdrawalRequests = useQuery({
+    queryKey: ["wallet-withdrawals", user?.id],
+    queryFn: () => mockApi.getWithdrawals(user?.id),
+  });
   const queryClient = useQueryClient();
   const withdraw = useMutation({
-    mutationFn: () => mockApi.withdraw(Number(amount)),
+    mutationFn: () =>
+      mockApi.withdraw({
+        amount: Number(amount),
+        bankAccount: selectedAccount,
+        user,
+      }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["wallet"] });
       await queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      await queryClient.invalidateQueries({ queryKey: ["wallet-withdrawals"] });
       setSuccess(true);
     },
   });
   const invalid =
-    Number(amount) <= 0 || Number(amount) > (data?.available ?? 0);
+    !selectedAccount ||
+    Number(amount) <= 0 ||
+    Number(amount) > (data?.available ?? 0);
+  const displayCurrency = (value) =>
+    balanceVisible ? formatCurrency(value) : "₦••••••";
+  const toggleBalance = () => {
+    setBalanceVisible((visible) => {
+      localStorage.setItem("ajopay-balance-visible", String(!visible));
+      return !visible;
+    });
+  };
+  const copyFundingDetail = async (value, label) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(label);
+      window.setTimeout(() => setCopied(""), 1800);
+    } catch {
+      setCopied("Copy unavailable");
+    }
+  };
   return (
     <div className="page">
       <PageHeader
-        eyebrow="YOUR MONEY"
-        title="Wallet"
-        description="A clear view of money available now and committed to your circles."
+        eyebrow={t("money.yourMoney")}
+        title={t("money.wallet")}
+        description={t("money.walletDescription")}
       />
       <section className="wallet-hero">
         <div>
-          <span>Available to withdraw</span>
+          <div className="wallet-hero__label">
+            <span>{t("money.availableWithdraw")}</span>
+            <button
+              type="button"
+              onClick={toggleBalance}
+              aria-label={balanceVisible ? "Hide account balances" : "Show account balances"}
+              aria-pressed={!balanceVisible}
+            >
+              {balanceVisible ? <EyeIcon /> : <EyeOffIcon />}
+              {balanceVisible ? "Hide balance" : "Show balance"}
+            </button>
+          </div>
           {isLoading ? (
             <Skeleton className="skeleton--amount" />
           ) : (
-            <strong>{formatCurrency(data?.available ?? 0)}</strong>
+            <strong aria-label={balanceVisible ? formatCurrency(data?.available ?? 0) : "Balance hidden"}>
+              {displayCurrency(data?.available ?? 0)}
+            </strong>
           )}
-          <small>Last updated just now</small>
+          <small>{t("money.updatedNow")}</small>
           <Button variant="secondary" onClick={() => setOpen(true)}>
-            Withdraw money <ArrowIcon />
+            {t("money.withdrawMoney")} <ArrowIcon />
           </Button>
         </div>
-        <ShieldIcon />
+        <WalletIcon />
       </section>
       <div className="stats-grid">
         <Card className="mini-stat">
@@ -65,8 +139,8 @@ export function WalletPage() {
             <UsersIconShim />
           </span>
           <div>
-            <small>In active Ajos</small>
-            <strong>{formatCurrency(data?.ajoBalance ?? 0)}</strong>
+            <small>{t("money.inActiveAjos")}</small>
+            <strong>{displayCurrency(data?.ajoBalance ?? 0)}</strong>
           </div>
         </Card>
         <Card className="mini-stat">
@@ -74,8 +148,8 @@ export function WalletPage() {
             <ReceiptIcon />
           </span>
           <div>
-            <small>Pending withdrawals</small>
-            <strong>{formatCurrency(data?.pending ?? 0)}</strong>
+            <small>{t("money.pendingWithdrawals")}</small>
+            <strong>{displayCurrency(data?.pending ?? 0)}</strong>
           </div>
         </Card>
         <Card className="mini-stat">
@@ -83,24 +157,94 @@ export function WalletPage() {
             <TrendIcon />
           </span>
           <div>
-            <small>Total saved this year</small>
-            <strong>{formatCurrency(1_480_000)}</strong>
+            <small>{t("money.savedThisYear")}</small>
+            <strong>{displayCurrency(1_480_000)}</strong>
           </div>
         </Card>
       </div>
+      <BankAccountsCard />
       <Card className="funding-note">
         <span>
           <WalletIcon />
         </span>
         <div>
-          <h2>Fund your wallet</h2>
-          <p>
-            Make a bank transfer to your personal AjoPay account. Your balance
-            updates after confirmation.
-          </p>
+          <h2>{t("money.fundWallet")}</h2>
+          <p>{t("money.fundWalletText")}</p>
         </div>
-        <Button variant="secondary">View account details</Button>
+        <Button variant="secondary" onClick={() => setFundingOpen(true)}>
+          {t("money.accountDetails")}
+        </Button>
       </Card>
+      <Card className="wallet-withdrawals">
+        <div className="section-title section-title--compact">
+          <div>
+            <h2>Withdrawal requests</h2>
+            <p>Track funds reserved for manual bank settlement.</p>
+          </div>
+        </div>
+        {withdrawalRequests.isLoading ? (
+          <Skeleton className="skeleton--table" />
+        ) : withdrawalRequests.data?.length ? (
+          <div className="wallet-withdrawals__list">
+            {withdrawalRequests.data.slice(0, 4).map((request) => (
+              <article key={request.id}>
+                <span><BankIcon /></span>
+                <div>
+                  <b>{request.bankAccount.bankName} •••• {request.bankAccount.accountNumber.slice(-4)}</b>
+                  <small>{formatDate(request.requestedAt)} · {request.id}</small>
+                </div>
+                <Badge tone={request.status === "PAID" ? "green" : request.status === "FAILED" ? "red" : "amber"}>{request.status.toLowerCase()}</Badge>
+                <strong>{displayCurrency(request.amount)}</strong>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p className="wallet-withdrawals__empty">No withdrawal requests yet.</p>
+        )}
+      </Card>
+      <Modal
+        open={fundingOpen}
+        onClose={() => {
+          setFundingOpen(false);
+          setCopied("");
+        }}
+        title="Fund your wallet"
+      >
+        {fundingAccount.isLoading ? (
+          <Skeleton className="skeleton--card" />
+        ) : fundingAccount.isError ? (
+          <div className="form-error" role="alert">
+            We couldn’t load your funding account. Please try again.
+          </div>
+        ) : (
+          <div className="funding-account">
+            <div className="funding-account__intro">
+              <span><WalletIcon /></span>
+              <div>
+                <h3>Transfer to your personal AjoPay account</h3>
+                <p>Your wallet updates after Paystack verifies the transfer.</p>
+              </div>
+            </div>
+            <dl>
+              <div><dt>Bank</dt><dd>{fundingAccount.data?.bankName}</dd></div>
+              <div className="funding-account__number">
+                <dt>Account number</dt>
+                <dd>{fundingAccount.data?.accountNumber}</dd>
+                <button type="button" onClick={() => copyFundingDetail(fundingAccount.data.accountNumber, "Account number copied")}>Copy</button>
+              </div>
+              <div><dt>Account name</dt><dd>{fundingAccount.data?.accountName}</dd></div>
+              <div className="funding-account__number">
+                <dt>Transfer reference</dt>
+                <dd>{fundingAccount.data?.reference}</dd>
+                <button type="button" onClick={() => copyFundingDetail(fundingAccount.data.reference, "Reference copied")}>Copy</button>
+              </div>
+            </dl>
+            {copied && <div className="funding-account__copied" role="status"><CheckIcon /> {copied}</div>}
+            <p className="secure-note"><ShieldIcon /> Only send money from an account you control. Do not share these details with anyone asking to withdraw on your behalf.</p>
+            <Button onClick={() => setFundingOpen(false)}>Done</Button>
+          </div>
+        )}
+      </Modal>
       <Modal
         open={open}
         onClose={() => {
@@ -108,19 +252,26 @@ export function WalletPage() {
           setSuccess(false);
           setAmount("");
         }}
-        title={success ? "Withdrawal submitted" : "Withdraw to your bank"}
+        title={success ? t("money.withdrawalSubmitted") : t("money.withdrawBank")}
       >
         {success ? (
           <div className="success-panel">
             <span>
               <CheckIcon />
             </span>
-            <h3>Your request is being processed</h3>
+            <h3>{t("money.processing")}</h3>
             <p>
-              We’ll notify you when {formatCurrency(Number(amount))} reaches
-              your GTBank account ending 8842.
+              {t("money.arrival", {
+                amount: formatCurrency(
+                  Number(amount),
+                  false,
+                  i18n.resolvedLanguage,
+                ),
+                bank: selectedAccount?.bankName || "bank",
+                last4: selectedAccount?.accountNumber.slice(-4) || "••••",
+              })}
             </p>
-            <Button onClick={() => setOpen(false)}>Done</Button>
+            <Button onClick={() => setOpen(false)}>{t("money.done")}</Button>
           </div>
         ) : (
           <form
@@ -131,40 +282,79 @@ export function WalletPage() {
             }}
           >
             <div className="summary-box">
-              <span>Available balance</span>
+              <span>{t("money.availableBalance")}</span>
               <b>{formatCurrency(data?.available ?? 0)}</b>
             </div>
             <label>
-              Amount (₦)
+              {t("money.amount")}
               <input
                 type="number"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                placeholder="Enter amount"
+                placeholder={t("money.enterAmount")}
               />
             </label>
             {Number(amount) > (data?.available ?? 0) && (
               <div className="form-error">
-                Amount exceeds your available balance.
+                {t("money.exceeds")}
               </div>
             )}
-            <label>
-              Bank account
-              <select>
-                <option>GTBank •••• 8842</option>
-              </select>
-            </label>
+            {accounts.length ? (
+              <label>
+                {t("money.bankAccount")}
+                <select
+                  value={selectedAccount?.id || ""}
+                  onChange={(event) =>
+                    setSelectedAccountId(event.target.value)
+                  }
+                >
+                  {accounts.map((account) => (
+                    <option value={account.id} key={account.id}>
+                      {account.bankName} {maskAccountNumber(account.accountNumber)}
+                      {account.isDefault ? " · Default" : ""}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : (
+              <div className="withdrawal-account-empty">
+                <BankIcon />
+                <div>
+                  <b>Add a withdrawal account</b>
+                  <small>
+                    You need a bank account before you can withdraw money.
+                  </small>
+                </div>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => {
+                    setOpen(false);
+                    setAddAccountOpen(true);
+                  }}
+                >
+                  Add account
+                </Button>
+              </div>
+            )}
             <p className="secure-note">
               <ShieldIcon />
-              Withdrawals are confirmed by the server and usually arrive within
-              one business day.
+              {t("money.secureNote")}
             </p>
             <Button disabled={invalid || withdraw.isPending}>
-              {withdraw.isPending ? "Submitting…" : "Review withdrawal"}
+              {withdraw.isPending ? t("money.submitting") : t("money.review")}
             </Button>
           </form>
         )}
       </Modal>
+      <AddBankAccountModal
+        open={addAccountOpen}
+        onClose={() => setAddAccountOpen(false)}
+        onSaved={(account) => {
+          setSelectedAccountId(account.id);
+          setOpen(true);
+        }}
+      />
     </div>
   );
 }
@@ -172,21 +362,17 @@ function UsersIconShim() {
   return <span aria-hidden="true">₦</span>;
 }
 export function TransactionsPage() {
+  const { t, i18n } = useTranslation();
   const [filter, setFilter] = useState("ALL");
   const { data = [], isLoading } = useQuery({
-    queryKey: ["transactions"],
-    queryFn: mockApi.transactions,
+    queryKey: ["transactions", filter],
+    queryFn: () => mockApi.transactions(filter),
   });
-  const rows = useMemo(
-    () => (filter === "ALL" ? data : data.filter((tx) => tx.type === filter)),
-    [data, filter],
-  );
   return (
     <div className="page">
       <PageHeader
-        eyebrow="MONEY TRAIL"
-        title="Transactions"
-        description="Every confirmed payment, payout, and withdrawal in one place."
+        title={t("money.history")}
+        description={t("money.historyText")}
       />
       <div className="filter-bar filter-bar--simple">
         <div className="tabs">
@@ -197,7 +383,7 @@ export function TransactionsPage() {
                 onClick={() => setFilter(item)}
                 key={item}
               >
-                {item.charAt(0) + item.slice(1).toLowerCase()}
+                {t(`money.${item.toLowerCase()}`)}
               </button>
             ),
           )}
@@ -206,15 +392,15 @@ export function TransactionsPage() {
       <Card className="table-card">
         <div className="data-table">
           <div className="data-table__head">
-            <span>Transaction</span>
-            <span>Date</span>
-            <span>Status</span>
-            <span>Amount</span>
+            <span>{t("money.transaction")}</span>
+            <span>{t("money.date")}</span>
+            <span>{t("money.status")}</span>
+            <span>{t("money.amount", { defaultValue: "Amount" }).replace(" (₦)", "")}</span>
           </div>
           {isLoading ? (
             <Skeleton className="skeleton--table" />
           ) : (
-            rows.map((tx) => (
+            data.map((tx) => (
               <div className="data-table__row" key={tx.id}>
                 <span>
                   <i className={`activity-icon activity-icon--${tx.direction}`}>
@@ -229,7 +415,7 @@ export function TransactionsPage() {
                     <small>{tx.subtitle}</small>
                   </span>
                 </span>
-                <span>{formatDate(tx.date)}</span>
+                <span>{formatDate(tx.date, i18n.resolvedLanguage)}</span>
                 <span>
                   <Badge
                     tone={

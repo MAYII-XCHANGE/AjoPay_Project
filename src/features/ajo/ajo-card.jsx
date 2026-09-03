@@ -6,7 +6,9 @@ import {
 } from "../../utils/formatters";
 import { ArrowIcon, UsersIcon } from "../../components/icons";
 import { Badge } from "../../components/ui";
+import { useTranslation } from "react-i18next";
 export function AjoCard({ ajo }) {
+  const { t, i18n } = useTranslation();
   const available = ajo.slotCount - ajo.filledSlots;
   return (
     <article className="ajo-card">
@@ -21,8 +23,8 @@ export function AjoCard({ ajo }) {
           }
         >
           {ajo.status === "ACTIVE"
-            ? `Round ${ajo.currentRound} of ${ajo.slotCount}`
-            : `${available} slots left`}
+            ? t("ajoCard.round", { current: ajo.currentRound, total: ajo.slotCount })
+            : t("ajoCard.slotsLeft", { count: available })}
         </Badge>
         <span>{ajo.category}</span>
       </div>
@@ -30,22 +32,28 @@ export function AjoCard({ ajo }) {
       <p>{ajo.description}</p>
       <div className="ajo-card__amount">
         <strong>{formatCurrency(ajo.contributionAmount)}</strong>
-        <span>{frequencyLabel[ajo.frequency].toLowerCase()}</span>
+        <span>{t(`ajoCard.${frequencyLabel[ajo.frequency].toLowerCase()}`)}</span>
       </div>
       {ajo.status === "ACTIVE" && (
-        <div className="progress" aria-label={`${ajo.progress}% complete`}>
+        <div className="progress" aria-label={t("ajoCard.complete", { value: ajo.progress })}>
           <span style={{ width: `${ajo.progress}%` }} />
         </div>
       )}
       <div className="ajo-card__meta">
         <span>
           <UsersIcon />
-          {ajo.filledSlots}/{ajo.slotCount} members
+          {t("ajoCard.members", { filled: ajo.filledSlots, total: ajo.slotCount })}
         </span>
-        <span>Starts {formatDate(ajo.startDate)}</span>
+        <span>
+          {ajo.startDate
+            ? t("ajoCard.starts", {
+                date: formatDate(ajo.startDate, i18n.resolvedLanguage),
+              })
+            : "Start date set after approval"}
+        </span>
       </div>
       <Link to={`/ajos/${ajo.id}`}>
-        View Ajo <ArrowIcon />
+        {t("ajoCard.view")} <ArrowIcon />
       </Link>
     </article>
   );
