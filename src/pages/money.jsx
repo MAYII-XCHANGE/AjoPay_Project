@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { mockApi } from "../api/mock-service";
+import { walletService } from "../services/wallet-service";
 import {
   ArrowIcon,
   BankIcon,
@@ -25,56 +25,55 @@ import {
   BankAccountsCard,
 } from "../features/bank-accounts/bank-accounts";
 import { maskAccountNumber } from "../features/bank-accounts/bank-account-utils";
-import { useAuth } from "../contexts/auth-context";
+import { useBankAccounts } from "../hooks/use-bank-accounts";
 import { formatCurrency, formatDate } from "../utils/formatters";
 import { useTranslation } from "react-i18next";
+import { QueryErrorState } from "../components/query-state";
 export function WalletPage() {
   const { t, i18n } = useTranslation();
-  const { user } = useAuth();
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError: walletError, error: walletRequestError } = useQuery({
     queryKey: ["wallet"],
-    queryFn: mockApi.wallet,
+    queryFn: walletService.getWallet,
+    refetchInterval: 60_000,
   });
   const [open, setOpen] = useState(false);
   const [fundingOpen, setFundingOpen] = useState(false);
+  const [fundingMode, setFundingMode] = useState("ACCOUNT");
   const [copied, setCopied] = useState("");
-  const [balanceVisible, setBalanceVisible] = useState(
-    () => localStorage.getItem("ajopay-balance-visible") !== "false",
-  );
+  const [balanceVisible, setBalanceVisible] = useState(true);
   const [addAccountOpen, setAddAccountOpen] = useState(false);
   const [amount, setAmount] = useState("");
   const [success, setSuccess] = useState(false);
   const [selectedAccountId, setSelectedAccountId] = useState("");
-  const accounts = (user?.bankAccounts || []).filter(
-    (account) => account.verified,
-  );
+  const { data: bankAccounts = [] } = useBankAccounts();
+  const accounts = bankAccounts.filter((account) => account.verified);
   const selectedAccount =
     accounts.find((account) => account.id === selectedAccountId) ||
     accounts.find((account) => account.isDefault) ||
     accounts[0] ||
     null;
-  const fundingAccount = useQuery({
-    queryKey: ["wallet-funding-account", user?.id],
-    queryFn: () => mockApi.fundingAccount(user),
-    enabled: fundingOpen,
-  });
   const withdrawalRequests = useQuery({
-    queryKey: ["wallet-withdrawals", user?.id],
-    queryFn: () => mockApi.getWithdrawals(user?.id),
+    queryKey: ["wallet-withdrawals"],
+    queryFn: walletService.getWithdrawals,
+  });
+  const allTransactions = useQuery({
+    queryKey: ["transactions", "ALL"],
+    queryFn: () => walletService.getTransactions("ALL"),
   });
   const queryClient = useQueryClient();
   const withdraw = useMutation({
-    mutationFn: () =>
-      mockApi.withdraw({
-        amount: Number(amount),
-        bankAccount: selectedAccount,
-        user,
-      }),
+    meta: { successMessage: "Your withdrawal request was submitted." },
+    mutationFn: () => walletService.withdraw(selectedAccount.id, Number(amount)),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["wallet"] });
       await queryClient.invalidateQueries({ queryKey: ["transactions"] });
       await queryClient.invalidateQueries({ queryKey: ["wallet-withdrawals"] });
       setSuccess(true);
+    },
+    onError: (error) => {
+      if (error.code === "INSUFFICIENT_AVAILABLE_BALANCE") {
+        queryClient.invalidateQueries({ queryKey: ["wallet"] });
+      }
     },
   });
   const invalid =
@@ -84,11 +83,39 @@ export function WalletPage() {
   const displayCurrency = (value) =>
     balanceVisible ? formatCurrency(value) : "₦••••••";
   const toggleBalance = () => {
-    setBalanceVisible((visible) => {
-      localStorage.setItem("ajopay-balance-visible", String(!visible));
-      return !visible;
-    });
+    setBalanceVisible((visible) => !visible);
   };
+  const [fundAmount, setFundAmount] = useState("");
+  const [walletType, setWalletType] = useState("AJO");
+  const funding = useMutation({
+    meta: { errorToast: true },
+    mutationFn: () => walletService.initializeFunding(walletType, Number(fundAmount)),
+    onSuccess: (result) => {
+      if (result.authorizationUrl) window.location.assign(result.authorizationUrl);
+    },
+  });
+  const { mutate: verifyFundingPayment, isError: verificationFailed, error: verificationError } = useMutation({
+    meta: { successMessage: "Your wallet funding was verified successfully." },
+    mutationFn: walletService.verifyFunding,
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["wallet"] }),
+        queryClient.invalidateQueries({ queryKey: ["transactions"] }),
+      ]);
+      window.history.replaceState({}, "", window.location.pathname);
+    },
+  });
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const reference = params.get("reference") || params.get("trxref");
+    if (reference) verifyFundingPayment(reference);
+  }, [verifyFundingPayment]);
+  const pendingAmount = (withdrawalRequests.data || [])
+    .filter((request) => ["PENDING", "PROCESSING"].includes(request.status))
+    .reduce((sum, request) => sum + Number(request.amount || 0), 0);
+  const fundedTotal = (allTransactions.data || [])
+    .filter((tx) => tx.type === "FUNDING" && tx.direction === "credit")
+    .reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
   const copyFundingDetail = async (value, label) => {
     try {
       await navigator.clipboard.writeText(value);
@@ -105,6 +132,7 @@ export function WalletPage() {
         title={t("money.wallet")}
         description={t("money.walletDescription")}
       />
+      {walletError && <QueryErrorState error={walletRequestError} title="Your wallet could not be loaded" />}
       <section className="wallet-hero">
         <div>
           <div className="wallet-hero__label">
@@ -133,6 +161,7 @@ export function WalletPage() {
         </div>
         <WalletIcon />
       </section>
+      {verificationFailed && <div className="form-error" role="alert">{verificationError.message}</div>}
       <div className="stats-grid">
         <Card className="mini-stat">
           <span>
@@ -149,7 +178,7 @@ export function WalletPage() {
           </span>
           <div>
             <small>{t("money.pendingWithdrawals")}</small>
-            <strong>{displayCurrency(data?.pending ?? 0)}</strong>
+            <strong>{displayCurrency(pendingAmount)}</strong>
           </div>
         </Card>
         <Card className="mini-stat">
@@ -157,8 +186,8 @@ export function WalletPage() {
             <TrendIcon />
           </span>
           <div>
-            <small>{t("money.savedThisYear")}</small>
-            <strong>{displayCurrency(1_480_000)}</strong>
+            <small>Total wallet funding</small>
+            <strong>{displayCurrency(fundedTotal)}</strong>
           </div>
         </Card>
       </div>
@@ -206,17 +235,12 @@ export function WalletPage() {
         open={fundingOpen}
         onClose={() => {
           setFundingOpen(false);
+          setFundingMode("ACCOUNT");
           setCopied("");
         }}
         title="Fund your wallet"
       >
-        {fundingAccount.isLoading ? (
-          <Skeleton className="skeleton--card" />
-        ) : fundingAccount.isError ? (
-          <div className="form-error" role="alert">
-            We couldn’t load your funding account. Please try again.
-          </div>
-        ) : (
+        {fundingMode === "ACCOUNT" && data?.fundingAccount?.active ? (
           <div className="funding-account">
             <div className="funding-account__intro">
               <span><WalletIcon /></span>
@@ -226,23 +250,26 @@ export function WalletPage() {
               </div>
             </div>
             <dl>
-              <div><dt>Bank</dt><dd>{fundingAccount.data?.bankName}</dd></div>
+              <div><dt>Bank</dt><dd>{data.fundingAccount.bankName}</dd></div>
               <div className="funding-account__number">
                 <dt>Account number</dt>
-                <dd>{fundingAccount.data?.accountNumber}</dd>
-                <button type="button" onClick={() => copyFundingDetail(fundingAccount.data.accountNumber, "Account number copied")}>Copy</button>
+                <dd>{data.fundingAccount.accountNumber}</dd>
+                <button type="button" onClick={() => copyFundingDetail(data.fundingAccount.accountNumber, "Account number copied")}>Copy</button>
               </div>
-              <div><dt>Account name</dt><dd>{fundingAccount.data?.accountName}</dd></div>
-              <div className="funding-account__number">
-                <dt>Transfer reference</dt>
-                <dd>{fundingAccount.data?.reference}</dd>
-                <button type="button" onClick={() => copyFundingDetail(fundingAccount.data.reference, "Reference copied")}>Copy</button>
-              </div>
+              <div><dt>Account name</dt><dd>{data.fundingAccount.accountName}</dd></div>
             </dl>
             {copied && <div className="funding-account__copied" role="status"><CheckIcon /> {copied}</div>}
             <p className="secure-note"><ShieldIcon /> Only send money from an account you control. Do not share these details with anyone asking to withdraw on your behalf.</p>
-            <Button onClick={() => setFundingOpen(false)}>Done</Button>
+            <div className="form-actions"><Button variant="secondary" onClick={() => setFundingMode("PAYSTACK")}>Fund with Paystack</Button><Button onClick={() => setFundingOpen(false)}>Done</Button></div>
           </div>
+        ) : (
+          <form className="modal-form" onSubmit={(event) => { event.preventDefault(); funding.mutate(); }}>
+            <p>Fund your Available or Ajo wallet securely with Paystack.</p>
+            {funding.isError && <div className="form-error" role="alert">{funding.error.message}</div>}
+            <label>Wallet<select value={walletType} onChange={(event) => setWalletType(event.target.value)}><option value="AJO">Ajo wallet</option><option value="AVAILABLE">Available wallet</option></select></label>
+            <label>Amount (₦)<input type="number" min="1" value={fundAmount} onChange={(event) => setFundAmount(event.target.value)} required /></label>
+            <Button disabled={funding.isPending || Number(fundAmount) <= 0}>{funding.isPending ? "Opening Paystack…" : "Continue to Paystack"}</Button>
+          </form>
         )}
       </Modal>
       <Modal
@@ -299,6 +326,7 @@ export function WalletPage() {
                 {t("money.exceeds")}
               </div>
             )}
+            {withdraw.isError && <div className="form-error" role="alert">{withdraw.error.message}</div>}
             {accounts.length ? (
               <label>
                 {t("money.bankAccount")}
@@ -366,7 +394,7 @@ export function TransactionsPage() {
   const [filter, setFilter] = useState("ALL");
   const { data = [], isLoading } = useQuery({
     queryKey: ["transactions", filter],
-    queryFn: () => mockApi.transactions(filter),
+    queryFn: () => walletService.getTransactions(filter),
   });
   return (
     <div className="page">

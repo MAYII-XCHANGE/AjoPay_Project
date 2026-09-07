@@ -62,8 +62,6 @@ const resources = {
         password: "Password",
         hidePassword: "Hide password",
         showPassword: "Show password",
-        validation:
-          "Please complete all fields. Passwords need at least 6 characters.",
         loginError: "We couldn’t sign you in. Please try again.",
         pleaseWait: "Please wait…",
         login: "Log in",

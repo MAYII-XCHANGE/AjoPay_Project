@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { BrandMark } from "../components/brand-mark";
 import {
@@ -14,11 +14,13 @@ import { Button } from "../components/ui";
 import { LanguageSelector } from "../components/language-selector";
 import { useAuth } from "../contexts/auth-context";
 import { Trans, useTranslation } from "react-i18next";
+import { hasErrors, validateLogin, validateRegistration } from "../utils/auth-validation";
+import { notifyError, notifySuccess } from "../utils/notifications";
 import "./auth.css";
 
 export function AuthPage({ mode }) {
   const { t } = useTranslation();
-  const { user, login, register, loading, enterDemo } = useAuth();
+  const { user, login, register, loading, sessionMessage } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [name, setName] = useState("");
@@ -26,8 +28,31 @@ export function AuthPage({ mode }) {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [retryAfterSeconds, setRetryAfterSeconds] = useState(0);
 
-  if (user) return <Navigate to="/dashboard" replace />;
+  useEffect(() => {
+    if (retryAfterSeconds <= 0) return undefined;
+    const timer = window.setInterval(() => setRetryAfterSeconds((seconds) => Math.max(0, seconds - 1)), 1_000);
+    return () => window.clearInterval(timer);
+  }, [retryAfterSeconds]);
+
+  useEffect(() => {
+    if (mode !== "login") return;
+    if (location.state?.passwordReset) {
+      notifySuccess("Password updated. You can now log in.", { id: "password-reset-complete" });
+    } else if (location.state?.verified) {
+      notifySuccess("Email verified. Sign in to continue.", { id: "email-verification-complete" });
+    }
+  }, [location.state, mode]);
+
+  useEffect(() => {
+    if (mode === "login" && sessionMessage) {
+      notifyError(sessionMessage, undefined, { id: "session-message" });
+    }
+  }, [mode, sessionMessage]);
+
+  if (user) return <Navigate to={user.role === "USER" ? "/dashboard" : "/admin"} replace />;
 
   const goBack = () => {
     if (window.history.length > 1) navigate(-1);
@@ -37,32 +62,34 @@ export function AuthPage({ mode }) {
   const submit = async (event) => {
     event.preventDefault();
     setError("");
-    if (
-      !email.includes("@") ||
-      password.length < 6 ||
-      (mode === "register" && !name.trim())
-    ) {
-      setError(t("auth.validation"));
-      return;
-    }
+    const nextErrors = mode === "register"
+      ? validateRegistration({ name, email, password })
+      : validateLogin({ email, password });
+    setFieldErrors(nextErrors);
+    if (hasErrors(nextErrors)) return setError(t("auth.validation"));
     try {
-      if (mode === "login") await login(email, password);
+      let authenticatedUser;
+      if (mode === "login") authenticatedUser = await login(email, password);
       else {
         await register(name, email, password);
-        sessionStorage.setItem("ajopay-verification-email", email);
         navigate("/verify-email", { state: { email }, replace: true });
         return;
       }
-      const destination = location.state?.from ?? "/dashboard";
+      const fallback = authenticatedUser?.role === "USER" ? "/dashboard" : "/admin";
+      const destination = location.state?.from ?? fallback;
       navigate(destination, { replace: true });
     } catch (requestError) {
-      setError(requestError.message || t("auth.loginError"));
+      if (requestError.code === "EMAIL_VERIFICATION_REQUIRED") {
+        navigate("/verify-email", { state: { email }, replace: true });
+        return;
+      }
+      if (requestError.code === "RATE_LIMIT_EXCEEDED") {
+        setRetryAfterSeconds(Math.max(60, Number(requestError.data?.retryAfterMinutes || 1) * 60));
+      }
+      const message = requestError.message || t("auth.loginError");
+      setError(message);
+      notifyError(message);
     }
-  };
-
-  const demo = (admin = false) => {
-    enterDemo(admin);
-    navigate(admin ? "/admin" : "/dashboard");
   };
 
   return (
@@ -110,11 +137,6 @@ export function AuthPage({ mode }) {
               ? t("auth.loginIntro")
               : t("auth.registerIntro")}
           </p>
-          {mode === "login" && location.state?.passwordReset && (
-            <div className="success-banner" role="status">
-              <CheckIcon /> Password updated. You can now log in.
-            </div>
-          )}
           <form onSubmit={submit}>
             {mode === "register" && (
               <label>
@@ -125,8 +147,10 @@ export function AuthPage({ mode }) {
                     value={name}
                     onChange={(event) => setName(event.target.value)}
                     autoComplete="name"
+                    aria-invalid={Boolean(fieldErrors.name)}
                   />
                 </div>
+                {fieldErrors.name && <small className="form-error">{fieldErrors.name}</small>}
               </label>
             )}
             <label>
@@ -138,14 +162,11 @@ export function AuthPage({ mode }) {
                   onChange={(event) => setEmail(event.target.value)}
                   type="email"
                   autoComplete="email"
+                  aria-invalid={Boolean(fieldErrors.email)}
                 />
               </div>
+              {fieldErrors.email && <small className="form-error">{fieldErrors.email}</small>}
             </label>
-            {mode === "login" && (
-              <Link className="auth-forgot" to="/forgot-password">
-                Forgot password?
-              </Link>
-            )}
             <label>
               {t("auth.password")}
               <div className="auth-input auth-input--password">
@@ -157,6 +178,7 @@ export function AuthPage({ mode }) {
                   autoComplete={
                     mode === "login" ? "current-password" : "new-password"
                   }
+                  aria-invalid={Boolean(fieldErrors.password)}
                 />
                 <button
                   type="button"
@@ -166,14 +188,22 @@ export function AuthPage({ mode }) {
                   {showPassword ? <EyeOffIcon /> : <EyeIcon />}
                 </button>
               </div>
+              {fieldErrors.password && <small className="form-error">{fieldErrors.password}</small>}
             </label>
             {error && (
               <div className="form-error" role="alert">
                 {error}
               </div>
             )}
-            <Button type="submit" disabled={loading}>
-              {loading
+            {mode === "login" && (
+              <Link className="auth-forgot" to="/forgot-password">
+                Forgot password?
+              </Link>
+            )}
+            <Button type="submit" disabled={loading || retryAfterSeconds > 0}>
+              {retryAfterSeconds > 0
+                ? `Try again in ${retryAfterSeconds}s`
+                : loading
                 ? t("auth.pleaseWait")
                 : mode === "login"
                   ? t("auth.login")
@@ -188,10 +218,6 @@ export function AuthPage({ mode }) {
               </p>
             )}
           </form>
-          <div className="demo-row">
-            <button onClick={() => demo()}>{t("auth.memberDemo")}</button>
-            <button onClick={() => demo(true)}>{t("auth.adminDemo")}</button>
-          </div>
           <p className="auth-switch">
             {mode === "login" ? t("auth.newToAjoPay") : t("auth.alreadyAccount")}{" "}
             <Link to={mode === "login" ? "/register" : "/login"}>

@@ -9,7 +9,7 @@ import { Badge } from "../../components/ui";
 import { useTranslation } from "react-i18next";
 export function AjoCard({ ajo }) {
   const { t, i18n } = useTranslation();
-  const available = ajo.slotCount - ajo.filledSlots;
+  const available = Math.max(ajo.availableSlots ?? ajo.slotCount - ajo.filledSlots, 0);
   return (
     <article className="ajo-card">
       <div className="ajo-card__top">

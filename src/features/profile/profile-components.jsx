@@ -1,5 +1,4 @@
 import {
-  AlertIcon,
   CalendarIcon,
   CameraIcon,
   CheckIcon,
@@ -8,11 +7,9 @@ import {
   GlobeIcon,
   KeyIcon,
   LockIcon,
-  LogoutIcon,
   MailIcon,
   PhoneIcon,
   ShieldIcon,
-  TrashIcon,
   UserIcon,
 } from "../../components/icons";
 import { Badge, Button, Card } from "../../components/ui";
@@ -30,7 +27,7 @@ export function ProfileHeader({ user, onEdit }) {
     <section className="profile-v2__hero" aria-labelledby="profile-name">
       <div className="profile-v2__avatar-wrap">
         <span className="profile-v2__avatar" aria-hidden="true">
-          {initials}
+          {user?.profileImageUrl || user?.avatarUrl ? <img src={user.profileImageUrl || user.avatarUrl} alt="" /> : initials}
         </span>
         <button
           type="button"
@@ -135,10 +132,9 @@ export function ProfileCompletion({ percentage, onComplete }) {
 
 export function ProfileStats({ user }) {
   const stats = [
-    ["Followers", user?.followersCount ?? 0, "People following your Ajos"],
+    ["Followers", user?.followerCount ?? 0, "People following your Ajos"],
     ["Community rating", `★ ${user?.rating ?? "—"}`, "From member ratings"],
-    ["Completed cycles", user?.completedCycles ?? 0, "Your saving history"],
-    ["On-time payments", "98%", "49 of 50 payments"],
+    ["Account role", user?.role || "USER", "Server-authorized access"],
   ];
   return (
     <div className="profile-v2__stats" aria-label="Account trust summary">
@@ -187,43 +183,6 @@ export function InformationCard({ icon, title, description, fields, onEdit }) {
   );
 }
 
-export function VerificationCard({ user, onAction }) {
-  const checks = [
-    ["Email address", user?.emailVerified !== false],
-    ["Phone number", user?.phoneVerified !== false],
-    ["Identity verification", user?.identityVerified !== false],
-  ];
-  return (
-    <Card className="profile-v2__verification">
-      <div className="profile-v2__card-head">
-        <span className="profile-v2__card-icon">
-          <ShieldIcon />
-        </span>
-        <div>
-          <h2>Account verification</h2>
-          <p>Verified details help keep every savings circle safe.</p>
-        </div>
-      </div>
-      <ul>
-        {checks.map(([label, complete]) => (
-          <li key={label}>
-            <span className={complete ? "is-complete" : ""}>
-              {complete ? <CheckIcon /> : <i />}
-            </span>
-            <div>
-              <b>{label}</b>
-              <small>{complete ? "Verified" : "Action required"}</small>
-            </div>
-          </li>
-        ))}
-      </ul>
-      <Button variant="secondary" onClick={onAction}>
-        View verification
-      </Button>
-    </Card>
-  );
-}
-
 function Toggle({ checked, onChange, label, disabled }) {
   return (
     <button
@@ -254,11 +213,7 @@ function SettingRow({ icon, title, text, action }) {
 }
 
 export function SecurityCard({
-  twoFactorEnabled,
-  onToggleTwoFactor,
   onChangePassword,
-  onLogoutAll,
-  busy,
 }) {
   return (
     <Card className="profile-v2__settings-card">
@@ -283,37 +238,10 @@ export function SecurityCard({
           }
         />
         <SettingRow
-          icon={<ShieldIcon />}
-          title="Two-factor authentication"
-          text={
-            twoFactorEnabled
-              ? "Extra sign-in protection is enabled."
-              : "Add another layer of account protection."
-          }
-          action={
-            <Toggle
-              checked={twoFactorEnabled}
-              onChange={onToggleTwoFactor}
-              label="Two-factor authentication"
-              disabled={busy}
-            />
-          }
-        />
-        <SettingRow
           icon={<DeviceIcon />}
           title="Active sessions"
-          text="This browser · Lagos, Nigeria · Active now"
+          text="Your access and refresh tokens are kept only in memory on this device."
           action={<Badge tone="green">Current</Badge>}
-        />
-        <SettingRow
-          icon={<LogoutIcon />}
-          title="Sign out everywhere"
-          text="End all active sessions except this one."
-          action={
-            <Button variant="secondary" onClick={onLogoutAll} disabled={busy}>
-              Sign out
-            </Button>
-          }
         />
       </div>
     </Card>
@@ -323,24 +251,9 @@ export function SecurityCard({
 export function PreferencesCard({ values, onChange, onSave, busy }) {
   const options = [
     [
-      "contributionReminders",
-      "Contribution reminders",
-      "Get a reminder before your next contribution is due.",
-    ],
-    [
-      "payoutUpdates",
-      "Payout updates",
-      "Receive updates as your payout position gets closer.",
-    ],
-    [
       "groupNotifications",
       "Group notifications",
       "Receive join-request and membership updates from your Ajos.",
-    ],
-    [
-      "productNews",
-      "Product and community news",
-      "Occasional updates about new AjoPay features.",
     ],
   ];
   return (
@@ -379,25 +292,6 @@ export function PreferencesCard({ values, onChange, onSave, busy }) {
           {busy ? "Saving…" : "Save preferences"}
         </Button>
       </div>
-    </Card>
-  );
-}
-
-export function DangerZone({ onDelete }) {
-  return (
-    <Card className="profile-v2__danger">
-      <span>
-        <AlertIcon />
-      </span>
-      <div>
-        <h2>Delete account</h2>
-        <p>
-          Permanently delete your AjoPay account and associated profile data.
-        </p>
-      </div>
-      <Button variant="danger" onClick={onDelete}>
-        <TrashIcon /> Delete account
-      </Button>
     </Card>
   );
 }

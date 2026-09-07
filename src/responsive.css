@@ -451,7 +451,7 @@ button {
   .order-row {
     margin-bottom: 9px;
     padding: 13px;
-    grid-template-columns: 34px 36px minmax(0, 1fr) 72px;
+    grid-template-columns: 34px 36px minmax(0, 1fr) 44px;
     gap: 8px;
     border: 1px solid #e2e9e6;
     border-radius: 12px;
@@ -594,12 +594,7 @@ button {
   }
 
   .order-row {
-    grid-template-columns: 29px 34px minmax(0, 1fr);
-  }
-
-  .order-row > div:last-child {
-    grid-column: 2 / -1;
-    justify-content: flex-end;
+    grid-template-columns: 29px 34px minmax(0, 1fr) 40px;
   }
 
   .modal-form .button,

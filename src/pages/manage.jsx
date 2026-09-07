@@ -1,29 +1,36 @@
-import { useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useParams } from "react-router-dom";
-import { mockApi } from "../api/mock-service";
+import { Link, Navigate, useParams } from "react-router-dom";
+import { ajoService } from "../services/ajo-service";
 import { CheckIcon, UsersIcon } from "../components/icons";
 import { Badge, Button, Card, Modal, PageHeader } from "../components/ui";
 import { useAuth } from "../contexts/auth-context";
+import { RatingForm } from "../features/ratings/rating-form";
+import { getAvailableAjoSlots, isAjoFull, isAjoPreStart, isAjoReadyToStart } from "../utils/ajo-filters";
+import { reorderBySlotId } from "../utils/ajo-order";
 export function ManageAjoPage() {
   const { ajoId = "" } = useParams();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { data: ajo } = useQuery({
     queryKey: ["ajo", ajoId, user?.id],
-    queryFn: () => mockApi.getAjo(ajoId, user?.id),
+    queryFn: () => ajoService.detail(ajoId),
   });
+  const isCreator = Boolean(ajo && user && ajo.creatorId === user.id);
   const { data: requests = [] } = useQuery({
     queryKey: ["ajo-requests", ajoId],
-    queryFn: () => mockApi.getJoinRequests({ ajoId, status: "PENDING" }),
+    queryFn: () => ajoService.getJoinRequests(ajoId),
+    enabled: isCreator,
   });
   const [confirmStart, setConfirmStart] = useState(false);
-  const [notice, setNotice] = useState("");
   const [startError, setStartError] = useState("");
   const review = useMutation({
+    meta: {
+      successMessage: (_data, variables) => `The join request was ${variables.decision.toLowerCase()}.`,
+    },
     mutationFn: ({ requestId, decision }) =>
-      mockApi.reviewJoinRequest(requestId, decision),
-    onSuccess: async (updated) => {
+      ajoService.reviewJoinRequest(ajoId, requestId, decision),
+    onSuccess: async (_, variables) => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["ajo-requests", ajoId] }),
         queryClient.invalidateQueries({ queryKey: ["join-requests"] }),
@@ -31,27 +38,39 @@ export function ManageAjoPage() {
         queryClient.invalidateQueries({ queryKey: ["ajos"] }),
         queryClient.invalidateQueries({ queryKey: ["notifications"] }),
       ]);
-      setNotice(
-        `${updated.user.name} was ${updated.status.toLowerCase()}.`,
-      );
     },
   });
-  const pending = requests;
-  const readyToStart =
-    ajo?.status === "OPEN" && ajo?.filledSlots === ajo?.slotCount;
+  const pending = requests.filter((request) => request.status === "PENDING");
+  const availableSlots = getAvailableAjoSlots(ajo);
+  const groupIsFull = isAjoFull(ajo);
+  const preStart = isAjoPreStart(ajo);
+  const readyToStart = isAjoReadyToStart(ajo);
   const startAjo = useMutation({
-    mutationFn: () => mockApi.startAjo(ajoId),
+    meta: { successMessage: "The Ajo cycle has started successfully." },
+    mutationFn: () => ajoService.start(ajoId, { confirm: true }),
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["ajo", ajoId] }),
         queryClient.invalidateQueries({ queryKey: ["ajos"] }),
       ]);
       setConfirmStart(false);
-      setNotice("The Ajo cycle has started successfully.");
     },
     onError: (error) =>
       setStartError(error.message || "This Ajo could not be started."),
   });
+  const endAjo = useMutation({
+    meta: { successMessage: "The open Ajo was ended." },
+    mutationFn: () => ajoService.end(ajoId),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["ajo", ajoId] }),
+        queryClient.invalidateQueries({ queryKey: ["ajos"] }),
+      ]);
+    },
+  });
+  if (ajo && !isCreator) {
+    return <Navigate to={`/ajos/${ajoId}`} replace />;
+  }
   return (
     <div className="page">
       <Link to={`/ajos/${ajoId}`} className="back-link">
@@ -61,20 +80,15 @@ export function ManageAjoPage() {
         eyebrow="CREATOR TOOLS"
         title={`Manage ${ajo?.name ?? "your Ajo"}`}
         description="Review requests and get the circle ready to begin."
-        action={
+        action={readyToStart ? (
           <Link
             to={`/ajos/${ajoId}/order`}
             className="button button--secondary"
           >
             Arrange payout order
           </Link>
-        }
+        ) : null}
       />
-      {notice && (
-        <div className="success-banner" role="status">
-          <CheckIcon /> {notice}
-        </div>
-      )}
       <section className="stats-grid stats-grid--manage">
         <Card>
           <small>Confirmed slots</small>
@@ -93,10 +107,12 @@ export function ManageAjoPage() {
           <strong>{ajo?.status || "Loading"}</strong>
           <span>
             {readyToStart
-              ? "Ready to start"
-              : ajo?.status === "OPEN"
-                ? "Waiting for all slots to fill"
-                : "Cycle already started"}
+              ? "Filled — arrange the payout order"
+              : preStart
+                ? `${availableSlots} slot${availableSlots === 1 ? "" : "s"} remaining`
+                : ajo?.status === "ACTIVE"
+                  ? "Cycle already started"
+                  : "This group is no longer accepting members"}
           </span>
         </Card>
       </section>
@@ -137,10 +153,10 @@ export function ManageAjoPage() {
                     Decline
                   </Button>
                   <Button
-                    disabled={review.isPending}
+                    disabled={review.isPending || groupIsFull}
                     onClick={() => review.mutate({ requestId: request.id, decision: "ACCEPTED" })}
                   >
-                    Accept
+                    {groupIsFull ? "Group filled" : "Accept"}
                   </Button>
                 </div>
               </article>
@@ -156,11 +172,19 @@ export function ManageAjoPage() {
           )}
         </div>
       </Card>
+      {(ajo?.slots || [])
+        .filter((slot) => (ajo.status === "COMPLETED" || slot.status === "EXITED" || slot.participant?.exitedAt) && (slot.participant || slot.user)?.id !== user?.id)
+        .map((slot) => <RatingForm key={slot.id || slot.slotId} ajoId={ajoId} participant={slot.participant || slot.user} />)}
       <div className="creator-footer">
         <div>
-          <b>Ready to begin?</b>
-          <span>Finalise the payout order before starting the cycle.</span>
+          <b>{readyToStart ? "All slots are filled" : preStart ? "Waiting for members" : "Cycle status"}</b>
+          <span>{readyToStart ? "Arrange or review the payout order, then start the cycle." : preStart ? `${availableSlots} slot${availableSlots === 1 ? "" : "s"} must still be filled.` : "This Ajo can no longer be started from its setup state."}</span>
         </div>
+        {readyToStart && (
+          <Link to={`/ajos/${ajoId}/order`} className="button button--secondary">
+            Arrange payout order
+          </Link>
+        )}
         <Button
           onClick={() => {
             setStartError("");
@@ -170,6 +194,11 @@ export function ManageAjoPage() {
         >
           {ajo?.status === "ACTIVE" ? "Cycle active" : "Start cycle"}
         </Button>
+        {preStart && (
+          <Button variant="danger" onClick={() => endAjo.mutate()} disabled={endAjo.isPending}>
+            {endAjo.isPending ? "Ending…" : "End Ajo"}
+          </Button>
+        )}
       </div>
       <Modal
         open={confirmStart}
@@ -180,7 +209,7 @@ export function ManageAjoPage() {
           <span className="warning-icon">!</span>
           <p>
             Once started, members and the payout order cannot be changed. The
-            first contribution will become due immediately.
+            first contribution and payout eligibility will follow the configured first-payout schedule.
           </p>
           <ul>
             <li>
@@ -215,36 +244,69 @@ export function ManageAjoPage() {
 }
 export function OrderPage() {
   const { ajoId = "" } = useParams();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
-  const initial = [
-    "Mayowa Adeyemi",
-    "Amina Yusuf",
-    "Chidi Eze",
-    "Ngozi Okafor",
-    "Tunde Bello",
-    "Sade Williams",
-  ];
-  const [members, setMembers] = useState(initial);
-  const [saved, setSaved] = useState(false);
+  const { data: ajo } = useQuery({ queryKey: ["ajo", ajoId], queryFn: () => ajoService.detail(ajoId) });
+  const isCreator = Boolean(ajo && user && ajo.creatorId === user.id);
+  const canArrangeOrder = isCreator && isAjoReadyToStart(ajo);
+  const [memberOrder, setMemberOrder] = useState([]);
+  const [draggedSlotId, setDraggedSlotId] = useState(null);
+  const [dragOverSlotId, setDragOverSlotId] = useState(null);
+  const draggedSlotIdRef = useRef(null);
+  const sourceMembers = useMemo(() => (ajo?.slots || [])
+      .filter((slot) => slot.participant || slot.user)
+      .map((slot) => ({
+        slotId: slot.id || slot.slotId,
+        name: slot.participant?.name || slot.user?.name || "AjoPay member",
+        payoutPosition: slot.payoutPosition,
+        slotNumber: slot.slotNumber,
+      }))
+      .sort((left, right) => (
+        (left.payoutPosition || left.slotNumber || Number.MAX_SAFE_INTEGER)
+        - (right.payoutPosition || right.slotNumber || Number.MAX_SAFE_INTEGER)
+      )), [ajo?.slots]);
+  const members = memberOrder.length
+    ? memberOrder.map((slotId) => sourceMembers.find((member) => member.slotId === slotId)).filter(Boolean)
+    : sourceMembers;
   const saveOrder = useMutation({
-    mutationFn: () => mockApi.setAjoOrder(ajoId, members),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["ajo", ajoId] });
-      setSaved(true);
-    },
+    meta: { successMessage: "Payout order saved successfully." },
+    mutationFn: () => ajoService.setOrder(ajoId, members.map((member, index) => ({ slotId: member.slotId, position: index + 1 }))),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["ajo", ajoId] }),
   });
   const move = (index, direction) => {
     const next = [...members];
     const target = index + direction;
     if (target < 0 || target >= next.length) return;
     [next[index], next[target]] = [next[target], next[index]];
-    setMembers(next);
-    setSaved(false);
+    setMemberOrder(next.map((member) => member.slotId));
+  };
+  const reorder = (sourceSlotId, targetSlotId) => {
+    const next = reorderBySlotId(members, sourceSlotId, targetSlotId);
+    setMemberOrder(next.map((member) => member.slotId));
+  };
+  const startDragging = (slotId) => {
+    draggedSlotIdRef.current = slotId;
+    setDraggedSlotId(slotId);
+  };
+  const stopDragging = () => {
+    draggedSlotIdRef.current = null;
+    setDraggedSlotId(null);
+    setDragOverSlotId(null);
+  };
+  const handlePointerMove = (event) => {
+    if (!draggedSlotIdRef.current) return;
+    const target = document.elementFromPoint(event.clientX, event.clientY)?.closest("[data-order-slot]");
+    const targetSlotId = target?.dataset.orderSlot;
+    if (!targetSlotId || targetSlotId === draggedSlotIdRef.current) return;
+    reorder(draggedSlotIdRef.current, targetSlotId);
+    setDragOverSlotId(targetSlotId);
   };
   const randomize = () => {
-    setMembers([...members].sort(() => Math.random() - 0.5));
-    setSaved(false);
+    setMemberOrder([...members].sort(() => Math.random() - 0.5).map((member) => member.slotId));
   };
+  if (ajo && !canArrangeOrder) {
+    return <Navigate to={`/ajos/${ajoId}/manage`} replace />;
+  }
   return (
     <div className="page page--narrow">
       <Link to={`/ajos/${ajoId}/manage`} className="back-link">
@@ -253,9 +315,9 @@ export function OrderPage() {
       <PageHeader
         eyebrow="PAYOUT SCHEDULE"
         title="Arrange payout order"
-        description="Every accepted slot must appear exactly once. Review carefully before saving."
+        description="Drag any participant row into position. Every accepted slot must appear exactly once."
         action={
-          <Button variant="secondary" onClick={randomize}>
+          <Button variant="secondary" onClick={randomize} disabled={!canArrangeOrder}>
             Randomise order
           </Button>
         }
@@ -264,112 +326,71 @@ export function OrderPage() {
         <div className="order-head">
           <span>Position</span>
           <span>Member</span>
-          <span>Move</span>
+          <span>Drag</span>
         </div>
         {members.map((member, index) => (
-          <div className="order-row" key={member}>
+          <div
+            className={`order-row${draggedSlotId === member.slotId ? " order-row--dragging" : ""}${dragOverSlotId === member.slotId ? " order-row--drag-over" : ""}`}
+            data-order-slot={member.slotId}
+            onPointerDown={(event) => {
+              if (!canArrangeOrder || (event.pointerType === "mouse" && event.button !== 0)) return;
+              if (!event.target.closest(".order-drag-handle")) event.preventDefault();
+              event.currentTarget.setPointerCapture(event.pointerId);
+              startDragging(member.slotId);
+            }}
+            onPointerMove={handlePointerMove}
+            onPointerUp={(event) => {
+              if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+                event.currentTarget.releasePointerCapture(event.pointerId);
+              }
+              stopDragging();
+            }}
+            onPointerCancel={stopDragging}
+            key={member.slotId}
+          >
             <b>{index + 1}</b>
             <span className="avatar">
-              {member
+              {member.name
                 .split(" ")
                 .map((n) => n[0])
                 .join("")}
             </span>
             <div>
-              <strong>{member}</strong>
+              <strong>{member.name}</strong>
               <small>
                 {index === 0 ? "First payout" : `Payout ${index + 1}`}
               </small>
             </div>
-            <div>
-              <button
-                onClick={() => move(index, -1)}
-                disabled={index === 0}
-                aria-label={`Move ${member} up`}
-              >
-                ↑
-              </button>
-              <button
-                onClick={() => move(index, 1)}
-                disabled={index === members.length - 1}
-                aria-label={`Move ${member} down`}
-              >
-                ↓
-              </button>
-            </div>
+            <button
+              type="button"
+              className="order-drag-handle"
+              aria-label={`${member.name} payout position. Drag the row or use Up and Down arrow keys.`}
+              title="Drag anywhere on this row to reorder. Use Up or Down arrow keys when focused."
+              onKeyDown={(event) => {
+                if (event.key === "ArrowUp") {
+                  event.preventDefault();
+                  move(index, -1);
+                }
+                if (event.key === "ArrowDown") {
+                  event.preventDefault();
+                  move(index, 1);
+                }
+              }}
+            >
+              <span aria-hidden="true">⠿</span>
+            </button>
           </div>
         ))}
       </Card>
-      {saved && (
-        <div className="success-banner">
-          <CheckIcon />
-          Payout order saved successfully.
-        </div>
-      )}
+      {ajo && !members.length && <div className="form-error" role="status">Accepted Ajo slots will appear here before you arrange the payout order.</div>}
       <div className="form-actions">
         <Link to={`/ajos/${ajoId}/manage`} className="button button--secondary">
           Cancel
         </Link>
-        <Button onClick={() => saveOrder.mutate()} disabled={saveOrder.isPending}>
+        <Button onClick={() => saveOrder.mutate()} disabled={saveOrder.isPending || !members.length || !canArrangeOrder}>
           {saveOrder.isPending ? "Saving…" : "Save payout order"}
         </Button>
       </div>
-    </div>
-  );
-}
-export function RenewPage() {
-  const { ajoId = "" } = useParams();
-  const [saved, setSaved] = useState(false);
-  return (
-    <div className="page page--narrow">
-      <Link to={`/ajos/${ajoId}`} className="back-link">
-        ← Back to Ajo
-      </Link>
-      <PageHeader
-        eyebrow="NEXT CYCLE"
-        title="Renew this Ajo"
-        description="Carry the group forward and update the next cycle’s terms."
-      />
-      <Card>
-        <form
-          className="form-grid"
-          onSubmit={(event) => {
-            event.preventDefault();
-            setSaved(true);
-          }}
-        >
-          <label>
-            Contribution amount (₦)
-            <input type="number" defaultValue="100000" />
-          </label>
-          <label>
-            Frequency
-            <select defaultValue="MONTHLY">
-              <option value="WEEKLY">Weekly</option>
-              <option value="MONTHLY">Monthly</option>
-            </select>
-          </label>
-          <label>
-            Next start date
-            <input type="date" defaultValue="2027-01-05" />
-          </label>
-          <label>
-            Late-payment grace (days)
-            <input type="number" defaultValue="2" />
-          </label>
-          <label className="full check-label">
-            <input type="checkbox" defaultChecked />
-            Invite all current members to the new cycle
-          </label>
-          {saved && (
-            <div className="success-banner full">
-              <CheckIcon />
-              Renewal invitations have been prepared.
-            </div>
-          )}
-          <Button type="submit">Save renewal</Button>
-        </form>
-      </Card>
     </div>
   );
 }

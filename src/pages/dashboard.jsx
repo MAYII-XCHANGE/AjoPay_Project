@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { mockApi } from "../api/mock-service";
+import { ajoService } from "../services/ajo-service";
+import { walletService } from "../services/wallet-service";
 import {
   ArrowIcon,
   BellIcon,
@@ -14,26 +15,30 @@ import {
 import { Badge, Card, Skeleton } from "../components/ui";
 import { AjoCard } from "../features/ajo/ajo-card";
 import { useAuth } from "../contexts/auth-context";
-import { formatCurrency } from "../utils/formatters";
+import { formatCurrency, formatCurrentDate } from "../utils/formatters";
 import { useTranslation } from "react-i18next";
 export function DashboardPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
-  const wallet = useQuery({ queryKey: ["wallet"], queryFn: mockApi.wallet });
+  const wallet = useQuery({ queryKey: ["wallet"], queryFn: walletService.getWallet });
   const ajos = useQuery({
     queryKey: ["ajos", user?.id],
-    queryFn: () => mockApi.getAjos(user?.id),
+    queryFn: () => ajoService.listForViewer({ page: 0, size: 20 }),
   });
   const transactions = useQuery({
     queryKey: ["transactions", "ALL"],
-    queryFn: () => mockApi.transactions("ALL"),
+    queryFn: () => walletService.getTransactions("ALL"),
   });
-  const active = ajos.data?.filter((ajo) => ajo.joined) ?? [];
+  const groups = ajos.data?.items ?? [];
+  const active = groups.filter((ajo) => ajo.joined);
+  const nextAjo = active.find((ajo) => ajo.nextPayment || ajo.startDate);
   return (
     <div className="page dashboard">
       <header className="welcome">
         <div>
-          <span className="eyebrow">{t("dashboard.date")}</span>
+          <time className="eyebrow" dateTime={new Date().toISOString().slice(0, 10)}>
+            {formatCurrentDate(i18n.resolvedLanguage)}
+          </time>
           <h1>
             {t("dashboard.greeting", { name: user?.name.split(" ")[0] })} <span>👋🏾</span>
           </h1>
@@ -73,11 +78,8 @@ export function DashboardPage() {
             <strong>{formatCurrency(wallet.data?.ajoBalance ?? 0)}</strong>
           )}
           <div>
-            <small>{t("dashboard.acrossAjos", { count: active.length || 1 })}</small>
-            <i className="positive">
-              <TrendIcon />
-              +12.5%
-            </i>
+            <small>{t("dashboard.acrossAjos", { count: active.length })}</small>
+            <i className="positive"><TrendIcon /> Server confirmed</i>
           </div>
         </Card>
         <Card className="balance-card">
@@ -85,10 +87,10 @@ export function DashboardPage() {
             <ReceiptIcon />
             {t("dashboard.nextContribution")}
           </span>
-          <strong>{formatCurrency(100_000)}</strong>
+          <strong>{formatCurrency(nextAjo?.contributionAmount ?? 0)}</strong>
           <div>
-            <small>New Home Fund • 3 days</small>
-            <Badge tone="amber">{t("dashboard.dueSoon")}</Badge>
+            <small>{nextAjo?.name || "No contribution scheduled"}</small>
+            {nextAjo && <Badge tone="amber">{t("dashboard.dueSoon")}</Badge>}
           </div>
         </Card>
       </section>
@@ -106,7 +108,7 @@ export function DashboardPage() {
           ? [1, 2].map((n) => <Skeleton className="skeleton--card" key={n} />)
           : active.map((ajo) => <AjoCard ajo={ajo} key={ajo.id} />)}
         {active.length === 1 &&
-          ajos.data
+          groups
             ?.filter((ajo) => ajo.status === "OPEN")
             .slice(0, 1)
             .map((ajo) => <AjoCard ajo={ajo} key={ajo.id} />)}

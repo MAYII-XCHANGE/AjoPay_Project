@@ -6,6 +6,7 @@ import {
   SearchIcon,
   ShieldIcon,
   UserIcon,
+  UserPlusIcon,
   UsersIcon,
   WalletIcon,
 } from "../../components/icons";
@@ -33,6 +34,7 @@ export const userNavigationSections = [
         path: "/my-ajos", 
         icon: UsersIcon 
       },
+      { label: "Join requests", path: "/join-requests", icon: UserPlusIcon },
       { label: "Wallet", 
         translationKey: "wallet",
         path: "/wallet", 
@@ -74,7 +76,7 @@ export const userNavigationSections = [
         translationKey: "adminPortal",
         path: "/admin",
         icon: ShieldIcon,
-        roles: ["ADMIN"],
+        roles: ["ADMIN", "SUPER_ADMIN"],
       },
     ],
   },

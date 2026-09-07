@@ -1,40 +1,44 @@
-import { useMemo, useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { mockApi } from "../../api/mock-service";
+import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { walletService } from "../../services/wallet-service";
 import {
-  AlertIcon,
   BankIcon,
   CheckIcon,
   PlusIcon,
   ShieldIcon,
-  TrashIcon,
 } from "../../components/icons";
 import { Badge, Button, Card, Modal } from "../../components/ui";
-import { useAuth } from "../../contexts/auth-context";
+import { useBankAccounts } from "../../hooks/use-bank-accounts";
 import { maskAccountNumber } from "./bank-account-utils";
 import "./bank-accounts.css";
+import { notifyError, notifySuccess } from "../../utils/notifications";
 
 export function AddBankAccountModal({ open, onClose, onSaved }) {
-  const { user, saveBankAccount } = useAuth();
+  const queryClient = useQueryClient();
   const [bankCode, setBankCode] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
   const [makeDefault, setMakeDefault] = useState(true);
   const [resolvedAccount, setResolvedAccount] = useState(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const accounts = user?.bankAccounts || [];
+  const { data: accounts = [] } = useBankAccounts({ enabled: open });
   const { data: banks = [], isLoading: banksLoading } = useQuery({
     queryKey: ["wallet-banks"],
-    queryFn: mockApi.getBanks,
+    queryFn: walletService.getBanks,
     enabled: open,
   });
   const selectedBank = banks.find((bank) => bank.code === bankCode);
   const numberIsValid = /^\d{10}$/.test(accountNumber);
   const resolveAccount = useMutation({
     mutationFn: () =>
-      mockApi.resolveBankAccount({ bankCode, accountNumber, user }),
+      walletService.resolveBankAccount(accountNumber, bankCode),
     onSuccess: (result) => {
-      setResolvedAccount(result);
+      setResolvedAccount({
+        ...result,
+        bankCode,
+        bankName: selectedBank?.name,
+        accountNumber,
+      });
       setError("");
     },
     onError: (requestError) => {
@@ -71,15 +75,20 @@ export function AddBankAccountModal({ open, onClose, onSaved }) {
 
     setBusy(true);
     try {
-      const created = await saveBankAccount({
-        ...resolvedAccount,
-        isDefault: makeDefault || accounts.length === 0,
-      });
+      const created = await walletService.saveBankAccount(accountNumber, bankCode);
+      if (makeDefault || accounts.length === 0) {
+        await walletService.setPrimaryBankAccount(created.id);
+        created.isDefault = true;
+      }
+      await queryClient.invalidateQueries({ queryKey: ["wallet-bank-accounts"] });
       onSaved?.(created);
       clearForm();
       onClose();
+      notifySuccess("Your verified withdrawal account was saved.");
     } catch (saveError) {
-      setError(saveError.message || "We couldn’t save this account. Please try again.");
+      const message = saveError.message || "We couldn’t save this account. Please try again.";
+      setError(message);
+      notifyError(message);
     } finally {
       setBusy(false);
     }
@@ -145,27 +154,19 @@ export function AddBankAccountModal({ open, onClose, onSaved }) {
 }
 
 export function BankAccountsCard({ title = "Withdrawal accounts", description = "Manage where your wallet withdrawals are sent." }) {
-  const { user, setDefaultBankAccount, removeBankAccount } = useAuth();
-  const accounts = useMemo(() => user?.bankAccounts || [], [user?.bankAccounts]);
+  const queryClient = useQueryClient();
+  const { data: accounts = [], isLoading, isError } = useBankAccounts();
   const [addOpen, setAddOpen] = useState(false);
-  const [removeAccount, setRemoveAccount] = useState(null);
   const [busyId, setBusyId] = useState("");
 
   const setDefault = async (id) => {
     setBusyId(id);
     try {
-      await setDefaultBankAccount(id);
-    } finally {
-      setBusyId("");
-    }
-  };
-
-  const remove = async () => {
-    if (!removeAccount) return;
-    setBusyId(removeAccount.id);
-    try {
-      await removeBankAccount(removeAccount.id);
-      setRemoveAccount(null);
+      await walletService.setPrimaryBankAccount(id);
+      await queryClient.invalidateQueries({ queryKey: ["wallet-bank-accounts"] });
+      notifySuccess("Your default withdrawal account was updated.");
+    } catch (error) {
+      notifyError(error, "We couldn’t update your default account.");
     } finally {
       setBusyId("");
     }
@@ -179,7 +180,11 @@ export function BankAccountsCard({ title = "Withdrawal accounts", description = 
           <div><h2>{title}</h2><p>{description}</p></div>
           <Button variant="secondary" onClick={() => setAddOpen(true)}><PlusIcon /> Add account</Button>
         </div>
-        {accounts.length ? (
+        {isLoading ? (
+          <div className="bank-accounts-card__empty"><p>Loading withdrawal accounts…</p></div>
+        ) : isError ? (
+          <div className="form-error" role="alert">We couldn’t load your withdrawal accounts.</div>
+        ) : accounts.length ? (
           <div className="bank-accounts-card__list">
             {accounts.map((account) => (
               <article key={account.id}>
@@ -191,7 +196,6 @@ export function BankAccountsCard({ title = "Withdrawal accounts", description = 
                 </div>
                 <div className="bank-accounts-card__actions">
                   {!account.isDefault && <button type="button" onClick={() => setDefault(account.id)} disabled={Boolean(busyId)}>Make default</button>}
-                  <button type="button" className="danger" onClick={() => setRemoveAccount(account)} disabled={Boolean(busyId)} aria-label={`Remove ${account.bankName} account`}><TrashIcon /></button>
                 </div>
               </article>
             ))}
@@ -205,13 +209,6 @@ export function BankAccountsCard({ title = "Withdrawal accounts", description = 
         )}
       </Card>
       <AddBankAccountModal open={addOpen} onClose={() => setAddOpen(false)} />
-      <Modal open={Boolean(removeAccount)} onClose={() => !busyId && setRemoveAccount(null)} title="Remove bank account?">
-        <div className="bank-account-remove">
-          <span><AlertIcon /></span>
-          <p>You will no longer be able to withdraw to <b>{removeAccount?.bankName} {maskAccountNumber(removeAccount?.accountNumber)}</b>.</p>
-          <div><Button variant="secondary" onClick={() => setRemoveAccount(null)} disabled={Boolean(busyId)}>Cancel</Button><Button variant="danger" onClick={remove} disabled={Boolean(busyId)}>{busyId ? "Removing…" : "Remove account"}</Button></div>
-        </div>
-      </Modal>
     </>
   );
 }

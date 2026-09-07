@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { mockApi } from "../../api/mock-service";
+import { supportService } from "../../services/support-service";
 import { AlertIcon, CheckIcon, PlusIcon, ShieldIcon } from "../../components/icons";
 import { Badge, Button, Card, EmptyState, Modal, PageHeader, Skeleton } from "../../components/ui";
 import { useAuth } from "../../contexts/auth-context";
@@ -10,12 +10,13 @@ import "./support.css";
 const toneForStatus = (status) => status === "RESOLVED" ? "green" : status === "OPEN" ? "amber" : "blue";
 
 function IssueCard({ issue, admin, onReview }) {
+  const status = issue.status || "OPEN";
   return (
     <article className="support-issue">
-      <div className="support-issue__head"><span>{issue.type}</span><Badge tone={toneForStatus(issue.status)}>{issue.status.toLowerCase().replace("_", " ")}</Badge></div>
+      <div className="support-issue__head"><span>{issue.type || "SUPPORT"}</span><Badge tone={toneForStatus(status)}>{status.toLowerCase().replace("_", " ")}</Badge></div>
       <h2>{issue.subject}</h2>
       <p>{issue.description}</p>
-      {admin && <div className="support-issue__user"><b>{issue.user.name}</b><span>{issue.user.email}</span></div>}
+      {admin && <div className="support-issue__user"><b>{issue.user?.name || issue.userName || "AjoPay user"}</b><span>{issue.user?.email || issue.userEmail}</span></div>}
       {issue.resolution && <div className="support-issue__resolution"><CheckIcon /><span><b>Resolution update</b>{issue.resolution}</span></div>}
       <footer><span>Opened {formatDate(issue.createdAt)} · {issue.id}</span>{admin && <Button variant="secondary" onClick={() => onReview(issue)}>Review</Button>}</footer>
     </article>
@@ -26,23 +27,21 @@ export function UserSupportPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
-  const [notice, setNotice] = useState("");
   const [values, setValues] = useState({ type: "SYSTEM", subject: "", description: "" });
-  const issues = useQuery({ queryKey: ["support-issues", user?.id], queryFn: () => mockApi.getSupportIssues(user.id) });
+  const issues = useQuery({ queryKey: ["support-issues", user?.id], queryFn: supportService.listMine });
   const submit = useMutation({
-    mutationFn: () => mockApi.submitSupportIssue({ user, ...values }),
+    meta: { successMessage: "Your support issue was submitted." },
+    mutationFn: () => supportService.create(values),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["support-issues"] });
       setValues({ type: "SYSTEM", subject: "", description: "" });
       setOpen(false);
-      setNotice("Your support issue was submitted.");
     },
   });
   const invalid = !values.subject.trim() || values.description.trim().length < 15;
   return (
     <div className="page support-page">
       <PageHeader eyebrow="HELP & SUPPORT" title="Support issues" description="Report a dispute or system issue and follow its resolution." action={<Button onClick={() => setOpen(true)}><PlusIcon /> Report an issue</Button>} />
-      {notice && <div className="success-banner" role="status"><CheckIcon /> {notice}</div>}
       {issues.isLoading ? <Skeleton className="skeleton--table" /> : issues.data?.length ? <div className="support-grid">{issues.data.map((issue) => <IssueCard issue={issue} key={issue.id} />)}</div> : <Card><EmptyState icon={<ShieldIcon />} title="No support issues" text="Issues and disputes you submit will appear here." /></Card>}
       <Modal open={open} onClose={() => !submit.isPending && setOpen(false)} title="Report an issue">
         <form className="support-form" onSubmit={(event) => { event.preventDefault(); if (!invalid) submit.mutate(); }}>
@@ -62,9 +61,10 @@ export function AdminSupportIssuesPage() {
   const [selected, setSelected] = useState(null);
   const [status, setStatus] = useState("IN_REVIEW");
   const [resolution, setResolution] = useState("");
-  const issues = useQuery({ queryKey: ["support-issues", "admin"], queryFn: mockApi.getAdminSupportIssues });
+  const issues = useQuery({ queryKey: ["support-issues", "admin"], queryFn: supportService.listAll });
   const update = useMutation({
-    mutationFn: () => mockApi.updateSupportIssue(selected.id, { status, resolution }),
+    meta: { successMessage: "The support issue was updated." },
+    mutationFn: () => supportService.update(selected.id, { status, resolution }),
     onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: ["support-issues"] }); setSelected(null); },
   });
   const openReview = (issue) => { setSelected(issue); setStatus(issue.status); setResolution(issue.resolution || ""); };

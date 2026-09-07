@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { mockApi } from "../api/mock-service";
+import { ajoService, mapJoinRequest } from "../services/ajo-service";
+import { contributionService } from "../services/contribution-service";
+import { socialService } from "../services/social-service";
 import {
   CheckIcon,
   PlusIcon,
@@ -23,6 +25,10 @@ import {
   formatDate,
   frequencyLabel,
 } from "../utils/formatters";
+import { toApiLocalDateTime, toApiLocalTime, toDateTimeInputValue, validateCreateAjo } from "../utils/ajo-validation";
+import { QueryErrorState } from "../components/query-state";
+import { Pagination } from "../components/pagination";
+import { getAvailableAjoSlots, isAjoFull, isAjoJoinable } from "../utils/ajo-filters";
 export function FindAjoPage({ publicView = false }) {
   const content = <FindAjo publicView={publicView} />;
   if (publicView)
@@ -46,17 +52,19 @@ export function FindAjoPage({ publicView = false }) {
 }
 export function MyAjosPage() {
   const [tab, setTab] = useState("active");
+  const [page, setPage] = useState(0);
   const { user } = useAuth();
-  const { data = [], isLoading } = useQuery({
-    queryKey: ["ajos", user?.id],
-    queryFn: () => mockApi.getAjos(user?.id),
+  const { data, isLoading, isError, error } = useQuery({
+    queryKey: ["ajos", user?.id, page],
+    queryFn: () => ajoService.listForViewer({ page, size: 20 }),
   });
+  const groups = data?.items || [];
   const mine =
     tab === "created"
-      ? data.filter((ajo) => ajo.creatorId === "user-1")
+      ? groups.filter((ajo) => Boolean(user && ajo.creatorId === user.id))
       : tab === "available"
-        ? data.filter((ajo) => ajo.status === "OPEN")
-        : data.filter((ajo) => ajo.joined);
+        ? groups.filter(isAjoJoinable)
+        : groups.filter((ajo) => ajo.joined);
   return (
     <div className="page">
       <PageHeader
@@ -78,15 +86,18 @@ export function MyAjosPage() {
         ].map(([value, label]) => (
           <button
             className={tab === value ? "active" : ""}
-            onClick={() => setTab(value)}
+            onClick={() => { setTab(value); setPage(0); }}
             key={value}
           >
             {label}
           </button>
         ))}
       </div>
+      <Pagination {...data} onChange={setPage} busy={isLoading} />
       <div className="ajo-grid">
-        {isLoading ? (
+        {isError ? (
+          <QueryErrorState error={error} title="Your Ajos could not be loaded" />
+        ) : isLoading ? (
           <Skeleton className="skeleton--card" />
         ) : (
           mine.map((ajo) => <AjoCard key={ajo.id} ajo={ajo} />)
@@ -107,44 +118,37 @@ export function AjoDetailPage() {
   const { user } = useAuth();
   const { data: ajo, isLoading } = useQuery({
     queryKey: ["ajo", ajoId, user?.id],
-    queryFn: () => mockApi.getAjo(ajoId, user?.id),
+    queryFn: () => ajoService.detail(ajoId),
   });
-  const { data: requests = [] } = useQuery({
-    queryKey: ["join-requests", "user", user?.id],
-    queryFn: () => mockApi.getJoinRequests({ userId: user.id }),
-  });
+  const currentRequest = ajo?.currentRequest ? mapJoinRequest(ajo.currentRequest, ajo) : null;
+  const [isFollowing, setIsFollowing] = useState(false);
   const creatorFollow = useQuery({
-    queryKey: ["followers", ajo?.creatorId, user?.id],
-    queryFn: () => mockApi.getFollowerSummary(ajo.creatorId, user.id),
-    enabled: Boolean(ajo && user && ajo.creatorId !== user.id),
+    queryKey: ["followers", ajo?.creatorId],
+    queryFn: () => socialService.followerCount(ajo.creatorId),
+    enabled: Boolean(ajo?.creatorId),
   });
   const toggleFollow = useMutation({
+    meta: { successMessage: () => isFollowing ? "You unfollowed this Ajo creator." : "You are now following this Ajo creator." },
     mutationFn: () =>
-      creatorFollow.data?.isFollowing
-        ? mockApi.unfollowUser(ajo.creatorId, user.id)
-        : mockApi.followUser(ajo.creatorId, user.id),
-    onSuccess: () =>
-      queryClient.invalidateQueries({
-        queryKey: ["followers", ajo?.creatorId, user?.id],
-      }),
+      isFollowing
+        ? socialService.unfollow(ajo.creatorId)
+        : socialService.follow(ajo.creatorId),
+    onSuccess: async () => {
+      setIsFollowing((current) => !current);
+      await queryClient.invalidateQueries({
+        queryKey: ["followers", ajo?.creatorId],
+      });
+    },
   });
-  const currentRequest = requests
-    .filter((request) => request.ajoId === ajoId)
-    .sort(
-      (left, right) =>
-        new Date(right.requestedAt) - new Date(left.requestedAt),
-    )[0];
   const join = useMutation({
+    meta: { successMessage: "Your join request was sent to the group admin." },
     mutationFn: () =>
-      mockApi.requestToJoin({
-        ajoId,
-        user,
-        slots,
-        preferredPosition:
-          preferredPosition === "ANY" ? null : preferredPosition,
+      ajoService.requestToJoin(ajoId, {
+        requestedSlots: slots,
+        preferredPayoutPositions: preferredPosition === "ANY" ? [] : [Number(preferredPosition)],
       }),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["join-requests"] });
+      await queryClient.invalidateQueries({ queryKey: ["ajo", ajoId] });
       setSuccess(true);
     },
     onError: (error) =>
@@ -153,9 +157,10 @@ export function AjoDetailPage() {
       ),
   });
   const cancelRequest = useMutation({
-    mutationFn: () => mockApi.cancelJoinRequest(currentRequest.id, user.id),
+    meta: { successMessage: "Your pending join request was cancelled." },
+    mutationFn: () => ajoService.cancelJoinRequest(ajoId, currentRequest.id),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["join-requests"] });
+      await queryClient.invalidateQueries({ queryKey: ["ajo", ajoId] });
       setJoinOpen(false);
       setJoinError("");
     },
@@ -164,15 +169,21 @@ export function AjoDetailPage() {
   });
   const contributionQuery = useQuery({
     queryKey: ["cycle-contributions", ajo?.currentCycleId],
-    queryFn: () => mockApi.getCycleContributions(ajo.currentCycleId),
+    queryFn: () => contributionService.listByCycle(ajo.currentCycleId),
     enabled: Boolean(ajo?.currentCycleId && ajo?.status === "ACTIVE"),
+    refetchInterval: 60_000,
   });
   const currentContribution = contributionQuery.data?.find(
     (contribution) => contribution.participant.id === user.id,
   );
   const payContribution = useMutation({
+    meta: { successMessage: "Your contribution payment was successful." },
     mutationFn: () =>
-      mockApi.payContribution(currentContribution.id, user.id),
+      contributionService.pay(
+        currentContribution.id,
+        Number(currentContribution.remainingAmount ?? currentContribution.amount),
+        crypto.randomUUID(),
+      ),
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["cycle-contributions"] }),
@@ -180,9 +191,15 @@ export function AjoDetailPage() {
         queryClient.invalidateQueries({ queryKey: ["transactions"] }),
       ]);
     },
+    onError: (error) => {
+      if (error.code === "INSUFFICIENT_AJO_BALANCE") {
+        queryClient.invalidateQueries({ queryKey: ["wallet"] });
+      }
+    },
   });
   const exitAjo = useMutation({
-    mutationFn: () => mockApi.exitAjo(ajoId, user.id),
+    meta: { successMessage: "You have exited the active Ajo cycle." },
+    mutationFn: () => ajoService.exit(ajoId),
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["ajo", ajoId] }),
@@ -191,14 +208,17 @@ export function AjoDetailPage() {
       setExitOpen(false);
     },
   });
-  if (isLoading || !ajo)
+  if (isLoading)
     return (
       <div className="page">
         <Skeleton className="skeleton--hero" />
       </div>
     );
-  const available = ajo.slotCount - ajo.filledSlots;
-  const isOwner = ajo.creatorId === user?.id;
+  if (!ajo) return <div className="page"><QueryErrorState title="This Ajo could not be loaded" /></div>;
+  const available = getAvailableAjoSlots(ajo);
+  const groupIsFull = isAjoFull(ajo);
+  const isCreator = Boolean(user && ajo.creatorId === user.id);
+  const canFollowCreator = Boolean(ajo.creatorId && !isCreator);
   return (
     <div className="page">
       <Link to="/find-ajo" className="back-link">
@@ -206,8 +226,8 @@ export function AjoDetailPage() {
       </Link>
       <section className="detail-hero">
         <div>
-          <Badge tone={ajo.status === "ACTIVE" ? "blue" : "green"}>
-            {ajo.status === "ACTIVE" ? "Active circle" : "Open to join"}
+          <Badge tone={ajo.status === "ACTIVE" ? "blue" : groupIsFull ? "amber" : "green"}>
+            {ajo.status === "ACTIVE" ? "Active circle" : groupIsFull ? "Filled — ready to start" : "Open to join"}
           </Badge>
           <h1>{ajo.name}</h1>
           <p>{ajo.description}</p>
@@ -216,13 +236,13 @@ export function AjoDetailPage() {
               Created by <b>{ajo.creator}</b> • ★ 4.9
               {creatorFollow.data && ` • ${creatorFollow.data.count} followers`}
             </span>
-            {!isOwner && (
+            {canFollowCreator && (
               <Button
                 variant="secondary"
                 onClick={() => toggleFollow.mutate()}
                 disabled={toggleFollow.isPending}
               >
-                {creatorFollow.data?.isFollowing ? "Following" : "Follow"}
+                {isFollowing ? "Following" : "Follow"}
               </Button>
             )}
           </div>
@@ -231,7 +251,7 @@ export function AjoDetailPage() {
           <small>Contribution</small>
           <strong>{formatCurrency(ajo.contributionAmount)}</strong>
           <span>{frequencyLabel[ajo.frequency]}</span>
-          {isOwner ? (
+          {isCreator ? (
             <Link
               to={`/ajos/${ajo.id}/manage`}
               className="button button--primary"
@@ -252,9 +272,11 @@ export function AjoDetailPage() {
                 setJoinError("");
                 setJoinOpen(true);
               }}
-              disabled={!available}
+              disabled={groupIsFull}
             >
-              {currentRequest?.status === "DECLINED"
+              {groupIsFull
+                ? "Group filled"
+                : currentRequest?.status === "DECLINED"
                 ? "Request again"
                 : "Request to join"}
             </Button>
@@ -359,9 +381,10 @@ export function AjoDetailPage() {
               {payContribution.isPending ? "Paying…" : "Pay contribution"}
             </Button>
           )}
+          {payContribution.isError && <div className="form-error" role="alert">{payContribution.error.message}</div>}
         </Card>
       )}
-      {ajo.status === "ACTIVE" && ajo.joined && !isOwner && (
+      {ajo.status === "ACTIVE" && ajo.joined && (
         <div className="ajo-member-actions">
           <div><b>Need to leave this cycle?</b><span>Exiting stops future contribution periods and cannot be undone here.</span></div>
           <Button variant="danger" onClick={() => setExitOpen(true)}>Exit Ajo</Button>
@@ -493,45 +516,51 @@ export function AjoDetailPage() {
 }
 export function CreateAjoPage() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [error, setError] = useState("");
+  const [minimumFirstPayoutAt] = useState(() =>
+    toDateTimeInputValue(new Date(Date.now() + 60 * 1000)),
+  );
   const [values, setValues] = useState({
     name: "",
     amount: "",
     frequency: "MONTHLY",
     slots: "",
-    category: "Business",
-    description: "",
+    firstPayoutAt: "",
+    lateWindowStart: "09:00",
+    lateWindowEnd: "18:00",
+    lateFeeAmount: "0",
+    creatorCommissionPercent: "0",
   });
   const mutation = useMutation({
+    meta: { successMessage: "Your Ajo was created successfully." },
     mutationFn: () =>
-      mockApi.createAjo(
-        {
-          name: values.name,
-          description: values.description || "A trusted savings circle.",
-          contributionAmount: Number(values.amount),
-          frequency: values.frequency,
-          slotCount: Number(values.slots),
-          category: values.category,
-        },
-        user,
-      ),
-    onSuccess: (ajo) => navigate(`/ajos/${ajo.id}`),
+      ajoService.create({
+        name: values.name.trim(),
+        contributionAmount: Number(values.amount),
+        frequency: values.frequency,
+        slotCount: Number(values.slots),
+        firstPayoutAt: toApiLocalDateTime(values.firstPayoutAt),
+        lateWindowStart: toApiLocalTime(values.lateWindowStart),
+        lateWindowEnd: toApiLocalTime(values.lateWindowEnd),
+        lateFeeAmount: Number(values.lateFeeAmount),
+        creatorCommissionPercent: Number(values.creatorCommissionPercent),
+      }),
+    onSuccess: async (ajo) => {
+      await queryClient.invalidateQueries({ queryKey: ["ajos"] });
+      navigate(`/ajos/${ajo.id}`);
+    },
   });
   const submit = (event) => {
     event.preventDefault();
-    if (
-      !values.name ||
-      Number(values.amount) <= 0 ||
-      Number(values.slots) < 2
-    ) {
-      setError("Please complete all required fields with valid values.");
-      return;
-    }
+    const errors = validateCreateAjo(values);
+    if (Object.keys(errors).length) return setError(Object.values(errors)[0]);
     mutation.mutate();
   };
-  const set = (key, value) =>
+  const set = (key, value) => {
+    setError("");
     setValues((current) => ({ ...current, [key]: value }));
+  };
   return (
     <div className="page page--narrow">
       <Link to="/my-ajos" className="back-link">
@@ -554,27 +583,6 @@ export function CreateAjoPage() {
                 placeholder="e.g. New Car Fund"
               />
             </label>
-            <label>
-              Goal or category
-              <select
-                value={values.category}
-                onChange={(e) => set("category", e.target.value)}
-              >
-                <option>Business</option>
-                <option>Home</option>
-                <option>Education</option>
-                <option>Lifestyle</option>
-                <option>Emergency</option>
-              </select>
-            </label>
-            <label className="full">
-              Short description
-              <textarea
-                value={values.description}
-                onChange={(e) => set("description", e.target.value)}
-                placeholder="Tell members what you’re saving towards"
-              />
-            </label>
           </div>
         </Card>
         <Card>
@@ -587,7 +595,8 @@ export function CreateAjoPage() {
                 value={values.amount}
                 onChange={(e) => set("amount", e.target.value)}
                 placeholder="50,000"
-                min="1"
+                min="100"
+                step="0.01"
               />
             </label>
             <label>
@@ -608,10 +617,25 @@ export function CreateAjoPage() {
                 value={values.slots}
                 onChange={(e) => set("slots", e.target.value)}
                 min="2"
-                max="50"
+                max="100"
                 placeholder="10"
               />
             </label>
+            <label>
+              First contribution and payout date/time *
+              <input
+                type="datetime-local"
+                value={values.firstPayoutAt}
+                onChange={(e) => set("firstPayoutAt", e.target.value)}
+                min={minimumFirstPayoutAt}
+                required
+              />
+              <small>The first contribution period is due at this time, and the first participant becomes eligible for payout. Later periods repeat {frequencyLabel[values.frequency]?.toLowerCase()}.</small>
+            </label>
+            <label>Late window starts (optional)<input type="time" value={values.lateWindowStart} onChange={(e) => set("lateWindowStart", e.target.value)} /></label>
+            <label>Late window ends (optional)<input type="time" value={values.lateWindowEnd} onChange={(e) => set("lateWindowEnd", e.target.value)} /></label>
+            <label>Late fee (₦) *<input type="number" min="0" step="0.01" value={values.lateFeeAmount} onChange={(e) => set("lateFeeAmount", e.target.value)} required /></label>
+            <label>Creator commission (%) *<input type="number" min="0" max="100" step="0.01" value={values.creatorCommissionPercent} onChange={(e) => set("creatorCommissionPercent", e.target.value)} required /></label>
           </div>
           {values.amount && values.slots && (
             <div className="payout-preview">
@@ -627,6 +651,7 @@ export function CreateAjoPage() {
             {error}
           </div>
         )}
+        {mutation.isError && <div className="form-error" role="alert">{mutation.error.message}</div>}
         <div className="form-actions">
           <Link to="/my-ajos" className="button button--secondary">
             Cancel

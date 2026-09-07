@@ -1,5 +1,6 @@
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { mockApi } from "../api/mock-service";
+import { notificationService } from "../services/notification-service";
 import { BellIcon, CheckIcon, UserIcon } from "../components/icons";
 import {
   Button,
@@ -10,59 +11,54 @@ import {
 } from "../components/ui";
 import { formatDate } from "../utils/formatters";
 import { useAuth } from "../contexts/auth-context";
+import { QueryErrorState } from "../components/query-state";
+import { Pagination } from "../components/pagination";
 export function NotificationsPage() {
+  const [page, setPage] = useState(0);
   const client = useQueryClient();
   const { user } = useAuth();
-  const { data: notificationPage, isLoading } = useQuery({
-    queryKey: ["notifications", user?.id],
-    queryFn: () => mockApi.notifications(user?.id),
+  const { data: notificationPage, isLoading, isError, error } = useQuery({
+    queryKey: ["notifications", user?.id, page],
+    queryFn: () => notificationService.list({ page, size: 20 }),
+    enabled: Boolean(user?.id),
+    refetchInterval: 60_000,
   });
   const data = notificationPage?.items || [];
   const markRead = useMutation({
-    mutationFn: mockApi.markNotificationRead,
-    onMutate: async (id) => {
-      await client.cancelQueries({ queryKey: ["notifications", user?.id] });
-      client.setQueryData(
-        ["notifications", user?.id],
-        (current) => current
-          ? {
-              ...current,
-              items: current.items.map((item) =>
-                item.id === id ? { ...item, read: true } : item,
-              ),
-              unreadCount: Math.max(0, current.unreadCount - 1),
-            }
-          : current,
-      );
-    },
-    onSettled: () => client.invalidateQueries({ queryKey: ["notifications"] }),
+    mutationFn: (ids) => Promise.all(ids.map((id) => notificationService.markRead(id))),
+    onSuccess: () => client.invalidateQueries({ queryKey: ["notifications"] }),
   });
-  const unread = data.filter((item) => !item.read);
+  const unreadOnPage = data.filter((item) => !item.read);
+  const unreadCount = notificationPage?.unreadCount ?? 0;
   return (
     <div className="page page--narrow">
       <PageHeader
         eyebrow="STAY UPDATED"
         title="Notifications"
-        description={`${unread.length} unread update${unread.length === 1 ? "" : "s"} about your savings.`}
+        description={`${unreadCount} unread update${unreadCount === 1 ? "" : "s"} about your savings.`}
         action={
-          unread.length > 0 && (
+          unreadOnPage.length > 0 && (
             <Button
               variant="secondary"
-              onClick={() => unread.forEach((item) => markRead.mutate(item.id))}
+              onClick={() => markRead.mutate(unreadOnPage.map((item) => item.id))}
+              disabled={markRead.isPending}
             >
-              Mark all as read
+              {markRead.isPending ? "Marking as read…" : "Mark page as read"}
             </Button>
           )
         }
       />
       <Card className="notification-list">
-        {isLoading ? (
+        {isError ? (
+          <QueryErrorState error={error} title="Notifications could not be loaded" />
+        ) : isLoading ? (
           <Skeleton className="skeleton--table" />
         ) : data.length ? (
           data.map((item) => (
             <button
               key={item.id}
-              onClick={() => !item.read && markRead.mutate(item.id)}
+              onClick={() => !item.read && markRead.mutate([item.id])}
+              disabled={markRead.isPending && markRead.variables?.includes(item.id)}
               className={!item.read ? "unread" : ""}
             >
               <span
@@ -92,6 +88,7 @@ export function NotificationsPage() {
           />
         )}
       </Card>
+      <Pagination {...notificationPage} onChange={setPage} busy={isLoading} />
     </div>
   );
 }

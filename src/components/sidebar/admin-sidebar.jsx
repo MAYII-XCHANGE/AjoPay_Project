@@ -1,6 +1,5 @@
-import { Link } from "react-router-dom";
 import { BrandMark } from "../brand-mark";
-import { ArrowIcon, CloseIcon, LogoutIcon } from "../icons";
+import { CloseIcon, LogoutIcon } from "../icons";
 import { adminNavigationSections } from "../../config/navigation/admin-navigation";
 import { SidebarSection } from "./sidebar-section";
 import { LanguageSelector } from "../language-selector";
@@ -44,10 +43,6 @@ export function AdminSidebar({ open, onClose, user, badges, onSignOut }) {
       <div className="sidebar__language">
         <LanguageSelector variant="dark" />
       </div>
-      <Link className="sidebar__switch" to="/dashboard" onClick={onClose}>
-        <ArrowIcon />
-        {t("navigation.backToMember")}
-      </Link>
       <div className="sidebar__profile">
         <span>{initials}</span>
         <div>

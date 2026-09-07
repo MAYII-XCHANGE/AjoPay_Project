@@ -3,7 +3,6 @@ import {
   HomeIcon,
   ReceiptIcon,
   SettingsIcon,
-  UserPlusIcon,
   UsersIcon,
   WalletIcon,
 } from "../../components/icons";
@@ -31,13 +30,6 @@ export const adminNavigationSections = [
         path: "/admin/ajos", 
         icon: UsersIcon 
       },
-      {
-        label: "Join requests",
-        translationKey: "joinRequests",
-        path: "/admin/join-requests",
-        icon: UserPlusIcon,
-        badgeKey: "joinRequests",
-      },
     ],
   },
   {
@@ -59,6 +51,7 @@ export const adminNavigationSections = [
     translationKey: "platform",
     items: [
       { label: "Settings", translationKey: "settings", path: "/admin/settings", icon: SettingsIcon },
+      { label: "Administrators", path: "/admin/admins", icon: UsersIcon, roles: ["SUPER_ADMIN"] },
       {
         label: "System issues",
         translationKey: "systemIssues",
