@@ -7,9 +7,17 @@ function NotificationKindIcon({ kind }) {
   return <BellIcon />;
 }
 
-export function NotificationItem({ item, markingRead, onMarkRead, onDelete }) {
+export function NotificationItem({ item, selected, markingRead, onSelect, onMarkRead, onDelete }) {
   return (
-    <article className={`notification-item${item.read ? "" : " unread"}`}>
+    <article className={`notification-item${item.read ? "" : " unread"}${selected ? " selected" : ""}`}>
+      <label className="notification-item__select" title="Select notification">
+        <input
+          type="checkbox"
+          checked={selected}
+          onChange={() => onSelect(item.id)}
+          aria-label={`Select ${item.title} notification`}
+        />
+      </label>
       <button
         type="button"
         className="notification-item__content"

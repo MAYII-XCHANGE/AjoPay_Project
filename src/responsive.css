@@ -590,7 +590,7 @@ button {
   }
 
   .notification-item {
-    grid-template-columns: minmax(0, 1fr) 45px;
+    grid-template-columns: 40px minmax(0, 1fr) 45px;
   }
 
   .notification-item__content {
@@ -732,5 +732,12 @@ button {
   .sidebar__nav a,
   .admin-shell > nav a {
     min-height: 44px;
+  }
+
+  .notification-item__delete,
+  .notification-item__select {
+    opacity: 1;
+    visibility: visible;
+    transform: none;
   }
 }
