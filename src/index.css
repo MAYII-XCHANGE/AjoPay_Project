@@ -2234,27 +2234,59 @@ p {
 .data-table__row > strong:last-child {
   text-align: right;
 }
+.data-table--transactions .data-table__head,
+.data-table--transactions .data-table__row {
+  grid-template-columns: minmax(190px, 1.7fr) minmax(180px, 1.6fr) minmax(105px, 0.9fr) minmax(105px, 0.8fr) minmax(105px, 0.8fr);
+}
+.transaction-description {
+  min-width: 0;
+  color: #5f726c;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
 .notification-list {
   padding: 0;
   overflow: hidden;
 }
-.notification-list > button {
+.notification-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.notification-toolbar svg {
+  width: 16px;
+}
+.notification-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 54px;
+  align-items: stretch;
+  border-bottom: 1px solid #e8edeb;
+  background: white;
+}
+.notification-item:last-child {
+  border-bottom: 0;
+}
+.notification-item.unread {
+  background: #f3f8f5;
+}
+.notification-item__content {
   width: 100%;
   display: grid;
   grid-template-columns: 42px 1fr 9px;
   gap: 13px;
   text-align: left;
   border: 0;
-  border-bottom: 1px solid #e8edeb;
-  background: white;
+  background: transparent;
   padding: 18px 20px;
 }
-.notification-list > button.unread {
-  background: #f3f8f5;
+.notification-item__content:hover:not(:disabled) {
+  background: rgba(31, 98, 79, 0.035);
 }
-.notification-list button > span:nth-child(2) {
+.notification-item__copy {
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 .notification-list b {
   font-size: 13px;
@@ -2268,12 +2300,46 @@ p {
   color: #93a09b;
   font-size: 9px;
 }
-.notification-list button > i {
+.notification-item__unread {
   width: 7px;
   height: 7px;
   border-radius: 50%;
   background: #dc9e28;
   margin-top: 6px;
+}
+.notification-item__delete {
+  width: 36px;
+  height: 36px;
+  place-self: center;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 9px;
+  color: #9a4b4b;
+  background: transparent;
+}
+.notification-item__delete:hover {
+  color: #a62f2f;
+  background: #fff0f0;
+}
+.notification-item__delete svg {
+  width: 17px;
+}
+.notification-delete-confirmation {
+  text-align: center;
+}
+.notification-delete-confirmation__icon {
+  width: 52px;
+  height: 52px;
+  margin: 0 auto 16px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #a62f2f;
+  background: #fff0f0;
+}
+.notification-delete-confirmation__icon svg {
+  width: 22px;
 }
 .notification-icon {
   width: 39px;

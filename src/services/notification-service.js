@@ -25,6 +25,12 @@ export const notificationService = {
   markRead(id) {
     return requestData({ method: "POST", url: `/notifications/${id}/read` });
   },
+  remove(id) {
+    return requestData({ method: "DELETE", url: `/notifications/${encodeURIComponent(id)}` });
+  },
+  removeAll() {
+    return requestData({ method: "DELETE", url: "/notifications" });
+  },
   getPreferences() {
     return requestData({ method: "GET", url: "/notifications/preferences" });
   },

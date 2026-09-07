@@ -417,9 +417,10 @@ export function TransactionsPage() {
         </div>
       </div>
       <Card className="table-card">
-        <div className="data-table">
+        <div className="data-table data-table--transactions">
           <div className="data-table__head">
             <span>{t("money.transaction")}</span>
+            <span>{t("money.description")}</span>
             <span>{t("money.date")}</span>
             <span>{t("money.status")}</span>
             <span>{t("money.amount", { defaultValue: "Amount" }).replace(" (₦)", "")}</span>
@@ -442,6 +443,7 @@ export function TransactionsPage() {
                     <small>{tx.subtitle}</small>
                   </span>
                 </span>
+                <span className="transaction-description">{tx.description || "—"}</span>
                 <span>{formatDate(tx.date, i18n.resolvedLanguage)}</span>
                 <span>
                   <Badge

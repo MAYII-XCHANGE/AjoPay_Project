@@ -437,6 +437,35 @@ button {
     align-self: end;
   }
 
+  .data-table--transactions .data-table__row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto auto auto;
+  }
+
+  .data-table--transactions .data-table__row > :nth-child(2) {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .data-table--transactions .data-table__row > :nth-child(3) {
+    grid-column: 1;
+    grid-row: 3;
+    justify-self: start;
+  }
+
+  .data-table--transactions .data-table__row > :nth-child(4) {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: start;
+  }
+
+  .data-table--transactions .data-table__row > :nth-child(5) {
+    grid-column: 2;
+    grid-row: 3;
+    justify-self: end;
+    align-self: end;
+  }
+
   .order-card {
     overflow: visible;
     border: 0;
@@ -560,10 +589,23 @@ button {
     text-align: left;
   }
 
-  .notification-list > button {
+  .notification-item {
+    grid-template-columns: minmax(0, 1fr) 45px;
+  }
+
+  .notification-item__content {
     grid-template-columns: 36px minmax(0, 1fr) 7px;
     gap: 10px;
     padding: 15px 13px;
+  }
+
+  .notification-toolbar,
+  .notification-toolbar .button {
+    width: 100%;
+  }
+
+  .notification-toolbar .button {
+    flex: 1 1 180px;
   }
 
   .notification-icon {
