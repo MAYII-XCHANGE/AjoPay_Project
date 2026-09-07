@@ -13,6 +13,7 @@ import {
   UserIcon,
 } from "../../components/icons";
 import { Badge, Button, Card } from "../../components/ui";
+import { AccountStatus } from "../../enums/statuses";
 
 export function ProfileHeader({ user, onEdit }) {
   const initials = (user?.name || "AjoPay member")
@@ -56,7 +57,7 @@ export function ProfileHeader({ user, onEdit }) {
         </div>
         <div className="profile-v2__meta">
           <span className="profile-v2__status">
-            <i /> {(user?.accountStatus || "ACTIVE").toLowerCase()}
+            <i /> {(user?.accountStatus || AccountStatus.ACTIVE).toLowerCase()}
           </span>
           <span>
             <CalendarIcon /> Member since {user?.joinedLabel || "Not available"}

@@ -17,13 +17,15 @@ import { AjoCard } from "../features/ajo/ajo-card";
 import { useAuth } from "../contexts/auth-context";
 import { formatCurrency, formatCurrentDate } from "../utils/formatters";
 import { useTranslation } from "react-i18next";
+import { DEFAULT_PAGE_SIZE } from "../config/pagination";
+import { AjoStatus } from "../enums/statuses";
 export function DashboardPage() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const wallet = useQuery({ queryKey: ["wallet"], queryFn: walletService.getWallet });
   const ajos = useQuery({
     queryKey: ["ajos", user?.id],
-    queryFn: () => ajoService.listForViewer({ page: 0, size: 20 }),
+    queryFn: () => ajoService.listForViewer({ page: 0, size: DEFAULT_PAGE_SIZE }),
   });
   const transactions = useQuery({
     queryKey: ["transactions", "ALL"],
@@ -109,7 +111,7 @@ export function DashboardPage() {
           : active.map((ajo) => <AjoCard ajo={ajo} key={ajo.id} />)}
         {active.length === 1 &&
           groups
-            ?.filter((ajo) => ajo.status === "OPEN")
+            ?.filter((ajo) => ajo.status === AjoStatus.OPEN)
             .slice(0, 1)
             .map((ajo) => <AjoCard ajo={ajo} key={ajo.id} />)}
       </div>

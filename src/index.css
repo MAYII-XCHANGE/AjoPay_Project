@@ -1405,6 +1405,8 @@ p {
   gap: 8px;
 }
 .detail-hero__actions .button { width: 100%; }
+.detail-hero__creator-actions { display: grid; gap: 10px; }
+.detail-hero__creator-actions .button { width: 100%; }
 .detail-hero .card > small:last-child {
   display: flex;
   gap: 6px;
@@ -3188,6 +3190,19 @@ p {
   display: grid;
   place-items: center;
   animation: marketing-visual-in 0.95s 0.12s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.marketing-hero__disclaimer {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  z-index: 3;
+  padding: 5px 8px;
+  border-radius: 999px;
+  color: #526b62;
+  background: rgba(255, 255, 255, 0.82);
+  font-size: 10px;
+  font-weight: 700;
 }
 .hero-blob {
   position: absolute;

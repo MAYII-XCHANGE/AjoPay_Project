@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { notificationService } from "../services/notification-service";
+import { DEFAULT_PAGE_SIZE } from "../config/pagination";
 import { BellIcon, CheckIcon, UserIcon } from "../components/icons";
 import {
   Button,
@@ -19,7 +20,7 @@ export function NotificationsPage() {
   const { user } = useAuth();
   const { data: notificationPage, isLoading, isError, error } = useQuery({
     queryKey: ["notifications", user?.id, page],
-    queryFn: () => notificationService.list({ page, size: 20 }),
+    queryFn: () => notificationService.list({ page, size: DEFAULT_PAGE_SIZE }),
     enabled: Boolean(user?.id),
     refetchInterval: 60_000,
   });

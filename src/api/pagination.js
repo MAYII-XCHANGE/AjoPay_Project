@@ -8,17 +8,18 @@ export function normalizePage(value, defaults = {}) {
         ? page
         : [],
     page: Number(page?.page ?? defaults.page ?? 0),
-    size: Number(page?.size ?? defaults.size ?? 20),
+    size: Number(page?.size ?? defaults.size ?? DEFAULT_PAGE_SIZE),
     totalElements: Number(page?.totalElements ?? page?.total ?? 0),
     totalPages: Number(page?.totalPages ?? 0),
     hasNext: Boolean(page?.hasNext),
   };
 }
 
-export function pageParams({ page = 0, size = 20, ...filters } = {}) {
+export function pageParams({ page = 0, size = DEFAULT_PAGE_SIZE, ...filters } = {}) {
   return Object.fromEntries(
     Object.entries({ page, size, ...filters }).filter(
       ([, value]) => value !== "" && value != null,
     ),
   );
 }
+import { DEFAULT_PAGE_SIZE } from "../config/pagination";

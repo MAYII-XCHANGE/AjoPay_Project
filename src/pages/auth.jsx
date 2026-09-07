@@ -71,8 +71,8 @@ export function AuthPage({ mode }) {
       let authenticatedUser;
       if (mode === "login") authenticatedUser = await login(email, password);
       else {
-        await register(name, email, password);
-        navigate("/verify-email", { state: { email }, replace: true });
+        const registration = await register(name, email, password);
+        navigate("/verify-email", { state: { email, resendCooldownSeconds: registration.resendCooldownSeconds }, replace: true });
         return;
       }
       const fallback = authenticatedUser?.role === "USER" ? "/dashboard" : "/admin";
@@ -84,7 +84,7 @@ export function AuthPage({ mode }) {
         return;
       }
       if (requestError.code === "RATE_LIMIT_EXCEEDED") {
-        setRetryAfterSeconds(Math.max(60, Number(requestError.data?.retryAfterMinutes || 1) * 60));
+        setRetryAfterSeconds(Number(requestError.data?.retryAfterSeconds));
       }
       const message = requestError.message || t("auth.loginError");
       setError(message);

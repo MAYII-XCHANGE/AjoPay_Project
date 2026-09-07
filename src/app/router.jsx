@@ -5,6 +5,7 @@ import { lazy, Suspense } from "react";
 import { ProtectedRoute, RoleRoute } from "./route-guards";
 import { UserDashboardLayout } from "../layouts/user-dashboard-layout";
 import { AdminDashboardLayout } from "../layouts/admin-dashboard-layout";
+import { ADMIN_ROLES, UserRole } from "../enums/roles";
 
 const lazyNamed = (load, name) => lazy(() => load().then((module) => ({ default: module[name] })));
 const LandingPage = lazyNamed(() => import("../pages/landing"), "LandingPage");
@@ -73,7 +74,7 @@ export const router = createBrowserRouter([
         ],
       },
       {
-        element: <RoleRoute roles={["ADMIN", "SUPER_ADMIN"]} />,
+        element: <RoleRoute roles={ADMIN_ROLES} />,
         children: [
           {
             element: <AdminDashboardLayout />,
@@ -89,7 +90,7 @@ export const router = createBrowserRouter([
               { path: "/admin/settings", element: page(AdminSettingsPage) },
               { path: "/admin/system-issues", element: page(AdminSupportIssuesPage) },
               {
-                element: <RoleRoute roles={["SUPER_ADMIN"]} />,
+                element: <RoleRoute roles={[UserRole.SUPER_ADMIN]} />,
                 children: [{ path: "/admin/admins", element: page(AdminsPage) }],
               },
             ],

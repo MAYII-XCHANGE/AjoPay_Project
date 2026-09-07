@@ -8,6 +8,7 @@ import { useAuth } from "../contexts/auth-context";
 import { RatingForm } from "../features/ratings/rating-form";
 import { getAvailableAjoSlots, isAjoFull, isAjoPreStart, isAjoReadyToStart } from "../utils/ajo-filters";
 import { reorderBySlotId } from "../utils/ajo-order";
+import { AjoStatus, JoinRequestStatus } from "../enums/statuses";
 export function ManageAjoPage() {
   const { ajoId = "" } = useParams();
   const { user } = useAuth();
@@ -40,7 +41,7 @@ export function ManageAjoPage() {
       ]);
     },
   });
-  const pending = requests.filter((request) => request.status === "PENDING");
+  const pending = requests.filter((request) => request.status === JoinRequestStatus.PENDING);
   const availableSlots = getAvailableAjoSlots(ajo);
   const groupIsFull = isAjoFull(ajo);
   const preStart = isAjoPreStart(ajo);
@@ -110,7 +111,7 @@ export function ManageAjoPage() {
               ? "Filled — arrange the payout order"
               : preStart
                 ? `${availableSlots} slot${availableSlots === 1 ? "" : "s"} remaining`
-                : ajo?.status === "ACTIVE"
+                : ajo?.status === AjoStatus.ACTIVE
                   ? "Cycle already started"
                   : "This group is no longer accepting members"}
           </span>
@@ -173,7 +174,7 @@ export function ManageAjoPage() {
         </div>
       </Card>
       {(ajo?.slots || [])
-        .filter((slot) => (ajo.status === "CYCLE_COMPLETED" || slot.status === "EXITED" || slot.participant?.exitedAt) && (slot.participant || slot.user)?.id !== user?.id)
+        .filter((slot) => (ajo.status === AjoStatus.CYCLE_COMPLETED || slot.status === "EXITED" || slot.participant?.exitedAt) && (slot.participant || slot.user)?.id !== user?.id)
         .map((slot) => <RatingForm key={slot.id || slot.slotId} ajoId={ajoId} participant={slot.participant || slot.user} />)}
       <div className="creator-footer">
         <div>
@@ -192,7 +193,7 @@ export function ManageAjoPage() {
           }}
           disabled={!readyToStart}
         >
-          {ajo?.status === "ACTIVE" ? "Cycle active" : "Start cycle"}
+          {ajo?.status === AjoStatus.ACTIVE ? "Cycle active" : "Start cycle"}
         </Button>
         {preStart && (
           <Button variant="danger" onClick={() => endAjo.mutate()} disabled={endAjo.isPending}>

@@ -10,6 +10,7 @@ import {
   UsersIcon,
   WalletIcon,
 } from "../../components/icons";
+import { ADMIN_ROLES } from "../../enums/roles";
 
 export const userNavigationSections = [
   {
@@ -76,7 +77,7 @@ export const userNavigationSections = [
         translationKey: "adminPortal",
         path: "/admin",
         icon: ShieldIcon,
-        roles: ["ADMIN", "SUPER_ADMIN"],
+        roles: ADMIN_ROLES,
       },
     ],
   },

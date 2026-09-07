@@ -7,6 +7,7 @@ import {
 import { ArrowIcon, UsersIcon } from "../../components/icons";
 import { Badge } from "../../components/ui";
 import { useTranslation } from "react-i18next";
+import { AjoStatus } from "../../enums/statuses";
 export function AjoCard({ ajo }) {
   const { t, i18n } = useTranslation();
   const available = Math.max(ajo.availableSlots ?? ajo.slotCount - ajo.filledSlots, 0);
@@ -15,14 +16,14 @@ export function AjoCard({ ajo }) {
       <div className="ajo-card__top">
         <Badge
           tone={
-            ajo.status === "ACTIVE"
+            ajo.status === AjoStatus.ACTIVE
               ? "blue"
               : available <= 2
                 ? "amber"
                 : "green"
           }
         >
-          {ajo.status === "ACTIVE"
+          {ajo.status === AjoStatus.ACTIVE
             ? t("ajoCard.round", { current: ajo.currentRound, total: ajo.slotCount })
             : t("ajoCard.slotsLeft", { count: available })}
         </Badge>
@@ -34,7 +35,7 @@ export function AjoCard({ ajo }) {
         <strong>{formatCurrency(ajo.contributionAmount)}</strong>
         <span>{t(`ajoCard.${frequencyLabel[ajo.frequency].toLowerCase()}`)}</span>
       </div>
-      {ajo.status === "ACTIVE" && (
+      {ajo.status === AjoStatus.ACTIVE && (
         <div className="progress" aria-label={t("ajoCard.complete", { value: ajo.progress })}>
           <span style={{ width: `${ajo.progress}%` }} />
         </div>

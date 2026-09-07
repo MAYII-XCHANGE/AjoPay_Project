@@ -8,6 +8,7 @@ import { UserSidebar } from "../components/sidebar/user-sidebar";
 import { useAuth } from "../contexts/auth-context";
 import { useTranslation } from "react-i18next";
 import { LogoutConfirmationModal } from "../components/logout-confirmation-modal";
+import { DEFAULT_PAGE_SIZE } from "../config/pagination";
 
 export function UserDashboardLayout() {
   const { t } = useTranslation();
@@ -16,7 +17,7 @@ export function UserDashboardLayout() {
   const { user } = useAuth();
   const { data: notificationPage } = useQuery({
     queryKey: ["notifications", user?.id],
-    queryFn: () => notificationService.list({ page: 0, size: 20 }),
+    queryFn: () => notificationService.list({ page: 0, size: DEFAULT_PAGE_SIZE }),
     enabled: Boolean(user?.id),
     refetchInterval: 60_000,
   });

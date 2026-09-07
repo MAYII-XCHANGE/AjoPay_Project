@@ -9,25 +9,25 @@ import { useTranslation } from "react-i18next";
 import { adminService } from "../services/admin-service";
 import { supportService } from "../services/support-service";
 import { LogoutConfirmationModal } from "../components/logout-confirmation-modal";
+import { SupportIssueStatus } from "../enums/statuses";
 
 export function AdminDashboardLayout() {
   const { t } = useTranslation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [logoutOpen, setLogoutOpen] = useState(false);
   const { user } = useAuth();
-  const { data: withdrawalPage } = useQuery({
-    queryKey: ["admin-withdrawals"],
-    queryFn: () => adminService.withdrawals({ page: 0, size: 100 }),
+  const { data: dashboard } = useQuery({
+    queryKey: ["admin-dashboard"],
+    queryFn: adminService.dashboard,
   });
-  const pendingWithdrawals = (withdrawalPage?.items || []).filter((request) =>
-    ["PENDING", "PROCESSING"].includes(request.status),
-  ).length;
+  const pendingWithdrawals = Number(dashboard?.pendingWithdrawals ?? 0)
+    + Number(dashboard?.processingWithdrawals ?? 0);
   const { data: supportIssuePage } = useQuery({
     queryKey: ["support-issues", "admin"],
     queryFn: supportService.listAll,
   });
   const openIssues = (supportIssuePage?.items || []).filter(
-    (issue) => issue.status !== "RESOLVED",
+    (issue) => issue.status !== SupportIssueStatus.RESOLVED,
   ).length;
   useEffect(() => {
     if (!sidebarOpen) return undefined;

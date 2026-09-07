@@ -26,6 +26,8 @@ import {
   frequencyLabel,
 } from "../utils/formatters";
 import { toApiLocalDateTime, toApiLocalTime, toDateTimeInputValue, validateCreateAjo } from "../utils/ajo-validation";
+import { DEFAULT_PAGE_SIZE } from "../config/pagination";
+import { AjoStatus, JoinRequestStatus as JoinRequestState } from "../enums/statuses";
 import { QueryErrorState } from "../components/query-state";
 import { Pagination } from "../components/pagination";
 import { getAvailableAjoSlots, isAjoFull, isAjoJoinable } from "../utils/ajo-filters";
@@ -56,7 +58,7 @@ export function MyAjosPage() {
   const { user } = useAuth();
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["ajos", user?.id, page],
-    queryFn: () => ajoService.listForViewer({ page, size: 20 }),
+    queryFn: () => ajoService.listForViewer({ page, size: DEFAULT_PAGE_SIZE }),
   });
   const groups = data?.items || [];
   const mine =
@@ -146,14 +148,21 @@ export function AjoDetailPage() {
     },
   });
   const join = useMutation({
-    meta: { successMessage: "Your join request was sent to the group admin." },
+    meta: {
+      successMessage: () => ajo?.creatorId === user?.id
+        ? "You joined your Ajo successfully."
+        : "Your join request was sent to the group admin.",
+    },
     mutationFn: () =>
       ajoService.requestToJoin(ajoId, {
         requestedSlots: slots,
         preferredPayoutPositions: preferredPositions.map(Number),
       }),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["ajo", ajoId] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["ajo", ajoId] }),
+        queryClient.invalidateQueries({ queryKey: ["ajos"] }),
+      ]);
       setSuccess(true);
     },
     onError: (error) =>
@@ -175,7 +184,7 @@ export function AjoDetailPage() {
   const contributionQuery = useQuery({
     queryKey: ["cycle-contributions", ajo?.currentCycleId],
     queryFn: () => contributionService.listByCycle(ajo.currentCycleId),
-    enabled: Boolean(ajo?.currentCycleId && ajo?.status === "ACTIVE"),
+    enabled: Boolean(ajo?.currentCycleId && ajo?.status === AjoStatus.ACTIVE),
     refetchInterval: 60_000,
   });
   const currentContribution = contributionQuery.data?.find(
@@ -231,8 +240,8 @@ export function AjoDetailPage() {
       </Link>
       <section className="detail-hero">
         <div>
-          <Badge tone={ajo.status === "ACTIVE" ? "blue" : groupIsFull ? "amber" : "green"}>
-            {ajo.status === "ACTIVE" ? "Active circle" : groupIsFull ? "Filled — ready to start" : "Open to join"}
+          <Badge tone={ajo.status === AjoStatus.ACTIVE ? "blue" : groupIsFull ? "amber" : "green"}>
+            {ajo.status === AjoStatus.ACTIVE ? "Active circle" : groupIsFull ? "Filled — ready to start" : "Open to join"}
           </Badge>
           <h1>{ajo.name}</h1>
           <p>{ajo.description}</p>
@@ -257,17 +266,29 @@ export function AjoDetailPage() {
           <strong>{formatCurrency(ajo.contributionAmount)}</strong>
           <span>{frequencyLabel[ajo.frequency]}</span>
           {isCreator ? (
-            <Link
-              to={`/ajos/${ajo.id}/manage`}
-              className="button button--primary"
-            >
-              Manage this Ajo
-            </Link>
+            <div className="detail-hero__creator-actions">
+              <Link
+                to={`/ajos/${ajo.id}/manage`}
+                className="button button--primary"
+              >
+                Manage this Ajo
+              </Link>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setJoinError("");
+                  setJoinOpen(true);
+                }}
+                disabled={groupIsFull}
+              >
+                {groupIsFull ? "Group filled" : "Join this Ajo"}
+              </Button>
+            </div>
           ) : ajo.joined || currentRequest?.status === "ACCEPTED" ? (
             <Button disabled>
               <CheckIcon /> Member
             </Button>
-          ) : currentRequest?.status === "PENDING" ? (
+          ) : currentRequest?.status === JoinRequestState.PENDING ? (
             <Button variant="secondary" onClick={() => setJoinOpen(true)}>
               Request sent
             </Button>
@@ -362,7 +383,7 @@ export function AjoDetailPage() {
           </ol>
         </Card>
       </div>
-      {ajo.status === "ACTIVE" && currentContribution && (
+      {ajo.status === AjoStatus.ACTIVE && currentContribution && (
         <Card className="ajo-contribution-card">
           <span className="ajo-contribution-card__icon">
             {currentContribution.status === "PAID" ? <CheckIcon /> : "₦"}
@@ -389,7 +410,7 @@ export function AjoDetailPage() {
           {payContribution.isError && <div className="form-error" role="alert">{payContribution.error.message}</div>}
         </Card>
       )}
-      {ajo.status === "ACTIVE" && ajo.joined && (
+      {ajo.status === AjoStatus.ACTIVE && ajo.joined && (
         <div className="ajo-member-actions">
           <div><b>Need to leave this cycle?</b><span>Exiting stops future contribution periods and cannot be undone here.</span></div>
           <Button variant="danger" onClick={() => setExitOpen(true)}>Exit Ajo</Button>
@@ -405,7 +426,7 @@ export function AjoDetailPage() {
         title={
           success
             ? "Request sent"
-            : currentRequest?.status === "PENDING"
+            : currentRequest?.status === JoinRequestState.PENDING
               ? "Pending join request"
               : `Join ${ajo.name}`
         }
@@ -422,7 +443,7 @@ export function AjoDetailPage() {
             </p>
             <Button onClick={() => setJoinOpen(false)}>Done</Button>
           </div>
-        ) : currentRequest?.status === "PENDING" ? (
+        ) : currentRequest?.status === JoinRequestState.PENDING ? (
           <div className="confirm-panel">
             <p>
               {ajo.creator} is reviewing your request. You are not a member

@@ -2,9 +2,8 @@ import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { BrandMark } from "../components/brand-mark";
 import { ArrowIcon, ShieldIcon } from "../components/icons";
+import { COPYRIGHT_YEAR, LEGAL_LAST_UPDATED } from "../config/public-content";
 import "./legal.css";
-
-const LAST_UPDATED = "3 September 2026";
 
 const termsSections = [
   {
@@ -501,7 +500,7 @@ function LegalPage({ type }) {
           <span className="legal-kicker"><ShieldIcon /> {eyebrow}</span>
           <h1>{title}</h1>
           <p>{introduction}</p>
-          <div><span>Effective date</span><b>{LAST_UPDATED}</b></div>
+          <div><span>Effective date</span><b>{LEGAL_LAST_UPDATED}</b></div>
         </section>
 
         <div className="legal-layout">
@@ -544,7 +543,7 @@ function LegalPage({ type }) {
           <Link to="/privacy">Privacy</Link>
           <Link to="/terms">Terms</Link>
         </nav>
-        <span>© 2026 AjoPay. All rights reserved.</span>
+        <span>© {COPYRIGHT_YEAR} AjoPay. All rights reserved.</span>
       </footer>
     </div>
   );

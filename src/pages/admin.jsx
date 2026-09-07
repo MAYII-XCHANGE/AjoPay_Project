@@ -8,6 +8,9 @@ import { Pagination } from "../components/pagination";
 import { useAuth } from "../contexts/auth-context";
 import { formatCurrency, formatDate } from "../utils/formatters";
 import { validateAdminAccount } from "../utils/admin-validation";
+import { DEFAULT_PAGE_SIZE } from "../config/pagination";
+import { UserRole } from "../enums/roles";
+import { WithdrawalStatus } from "../enums/statuses";
 
 function Metric({ icon, label, value, note, tone = "green" }) {
   return <Card className="admin-metric"><span className={`admin-metric__icon admin-metric__icon--${tone}`}>{icon}</span><small>{label}</small><strong>{value}</strong><span>{note}</span></Card>;
@@ -41,7 +44,7 @@ export function AdminUsersPage() {
   const [status, setStatus] = useState("");
   const [selected, setSelected] = useState(null);
   const client = useQueryClient();
-  const users = useQuery({ queryKey: ["admin-users", page, status], queryFn: () => adminService.users({ page, size: 20, status }) });
+  const users = useQuery({ queryKey: ["admin-users", page, status], queryFn: () => adminService.users({ page, size: DEFAULT_PAGE_SIZE, status }) });
   const userDetails = useQuery({ queryKey: ["admin-user", selected?.id], queryFn: () => adminService.user(selected.id), enabled: Boolean(selected) });
   const update = useMutation({
     meta: { successMessage: (_data, variables) => `The user account is now ${variables.nextStatus.toLowerCase()}.` },
@@ -64,25 +67,25 @@ export function AdminUsersPage() {
 
 export function AdminAjosPage() {
   const [page, setPage] = useState(0);
-  const groups = useQuery({ queryKey: ["admin-ajos", page], queryFn: () => ajoService.list({ page, size: 20 }) });
+  const groups = useQuery({ queryKey: ["admin-ajos", page], queryFn: () => ajoService.list({ page, size: DEFAULT_PAGE_SIZE }) });
   return <><PageHeader eyebrow="GROUP OVERSIGHT" title="Ajos" description="Browse group information returned by the Ajo API." /><Card className="table-card">{groups.isError && <QueryError error={groups.error} />}<div className="data-table"><div className="data-table__head"><span>Ajo</span><span>Creator</span><span>Status</span><span>Contribution</span></div>{groups.isLoading ? <Skeleton className="skeleton--table" /> : groups.data?.items.length ? groups.data.items.map((ajo) => <div className="data-table__row" key={ajo.id}><span><span><b>{ajo.name}</b><small>{ajo.publicId || ajo.id}</small></span></span><span>{ajo.creator}</span><Badge tone={ajo.status === "OPEN" ? "green" : "blue"}>{String(ajo.status).toLowerCase()}</Badge><strong>{formatCurrency(ajo.contributionAmount)}</strong></div>) : <EmptyState icon={<ShieldIcon />} title="No Ajos found" text="Groups will appear when creators add them." />}</div><Pagination {...groups.data} onChange={setPage} busy={groups.isFetching} /></Card></>;
 }
 
 export function AdminTransactionsPage() {
   const [page, setPage] = useState(0);
   const [type, setType] = useState("");
-  const gl = useQuery({ queryKey: ["platform-gl", page, type], queryFn: () => adminService.platformGl({ page, size: 20, type }) });
+  const gl = useQuery({ queryKey: ["platform-gl", page, type], queryFn: () => adminService.platformGl({ page, size: DEFAULT_PAGE_SIZE, type }) });
   return <><PageHeader eyebrow="PLATFORM LEDGER" title="General ledger" description="Authoritative platform accounting entries." /><div className="filter-bar filter-bar--simple"><input value={type} onChange={(event) => { setType(event.target.value.toUpperCase()); setPage(0); }} placeholder="Filter by GL type" /></div><Card className="table-card">{gl.isError && <QueryError error={gl.error} />}<div className="data-table"><div className="data-table__head"><span>Entry</span><span>Date</span><span>Reference</span><span>Amount</span></div>{gl.isLoading ? <Skeleton className="skeleton--table" /> : gl.data?.items.length ? gl.data.items.map((row, index) => <div className="data-table__row" key={row.id || `${row.referenceId}-${index}`}><span><span><b>{String(row.type || "Ledger entry").replaceAll("_", " ")}</b><small>{row.description}</small></span></span><span>{formatDate(row.createdAt || row.timestamp)}</span><span>{row.referenceId}</span><strong>{formatCurrency(row.amount)}</strong></div>) : <EmptyState icon={<ReceiptIcon />} title="No ledger entries" text="Try another entry type." />}</div><Pagination {...gl.data} onChange={setPage} busy={gl.isFetching} /></Card></>;
 }
 
 export function AdminWithdrawalsPage() {
   const [page, setPage] = useState(0);
-  const [status, setStatus] = useState("PENDING");
+  const [status, setStatus] = useState(WithdrawalStatus.PENDING);
   const [selected, setSelected] = useState(null);
   const [transferCode, setTransferCode] = useState("");
   const [reason, setReason] = useState("");
   const client = useQueryClient();
-  const requests = useQuery({ queryKey: ["admin-withdrawals", page, status], queryFn: () => adminService.withdrawals({ page, size: 20, status }) });
+  const requests = useQuery({ queryKey: ["admin-withdrawals", page, status], queryFn: () => adminService.withdrawals({ page, size: DEFAULT_PAGE_SIZE, status }) });
   const finish = async () => { await client.invalidateQueries({ queryKey: ["admin-withdrawals"] }); await client.invalidateQueries({ queryKey: ["admin-dashboard"] }); setSelected(null); setTransferCode(""); setReason(""); };
   const refreshChangedWithdrawal = (error) => { if (error.code === "INVALID_WITHDRAWAL_STATUS") client.invalidateQueries({ queryKey: ["admin-withdrawals"] }); };
   const initiate = useMutation({ mutationFn: adminService.initiateWithdrawal, meta: { successMessage: "Withdrawal marked as processing." }, onSuccess: finish, onError: refreshChangedWithdrawal });
@@ -104,7 +107,7 @@ export function AdminSettingsPage() {
   const [newSetting, setNewSetting] = useState({ key: "", value: "" });
   const save = useMutation({ mutationFn: ({ key, value }) => adminService.saveSetting(key, value), meta: { successMessage: "Setting saved." }, onSuccess: () => client.invalidateQueries({ queryKey: ["admin-settings"] }) });
   const create = useMutation({ mutationFn: ({ key, value }) => adminService.saveSetting(key, value), meta: { successMessage: "Platform setting created." }, onSuccess: async () => { await client.invalidateQueries({ queryKey: ["admin-settings"] }); setNewSetting({ key: "", value: "" }); } });
-  const canWrite = user?.tokenRole === "SUPER_ADMIN" && user?.role === "SUPER_ADMIN";
+  const canWrite = user?.tokenRole === UserRole.SUPER_ADMIN && user?.role === UserRole.SUPER_ADMIN;
   return <><PageHeader eyebrow="PLATFORM CONTROLS" title="Settings" description={canWrite ? "Create and update persisted platform settings." : "View persisted platform settings."} />{canWrite && <Card className="settings-card"><form className="form-grid" onSubmit={(event) => { event.preventDefault(); if (newSetting.key.trim() && newSetting.value.trim()) create.mutate({ key: newSetting.key.trim(), value: newSetting.value.trim() }); }}><label>Setting key<input value={newSetting.key} onChange={(event) => setNewSetting((current) => ({ ...current, key: event.target.value }))} placeholder="e.g. withdrawal.daily-limit" required /></label><label>Setting value<input value={newSetting.value} onChange={(event) => setNewSetting((current) => ({ ...current, value: event.target.value }))} placeholder="e.g. 500000" required /></label><Button type="submit" disabled={create.isPending || !newSetting.key.trim() || !newSetting.value.trim()}>{create.isPending ? "Creating..." : "Add setting"}</Button>{create.isError && <div className="form-error" role="alert">{create.error.message}</div>}</form></Card>}<Card className="settings-card">{settings.isLoading ? <Skeleton className="skeleton--table" /> : rows.length ? <div className="form-grid">{rows.map((row) => <label key={row.key}>{row.key}<input value={drafts[row.key] ?? row.value ?? ""} readOnly={!canWrite} onChange={(event) => setDrafts((current) => ({ ...current, [row.key]: event.target.value }))} />{canWrite && <Button type="button" disabled={save.isPending} onClick={() => save.mutate({ key: row.key, value: drafts[row.key] ?? row.value })}>Save</Button>}</label>)}</div> : <EmptyState icon={<ShieldIcon />} title="No settings returned" text={canWrite ? "Add the first platform setting above." : "Platform settings have not been configured yet."} />}</Card></>;
 }
 
@@ -115,10 +118,10 @@ export function AdminsPage() {
   const [open, setOpen] = useState(false);
   const [values, setValues] = useState({ firstName: "", lastName: "", email: "" });
   const [error, setError] = useState("");
-	const admins = useQuery({ queryKey: ["admins", page], queryFn: () => adminService.admins({ page, size: 20 }) });
+	const admins = useQuery({ queryKey: ["admins", page], queryFn: () => adminService.admins({ page, size: DEFAULT_PAGE_SIZE }) });
   const create = useMutation({ mutationFn: adminService.createAdmin, meta: { successMessage: "Administrator created. Their login credentials were sent by email." }, onSuccess: async () => { await client.invalidateQueries({ queryKey: ["admins"] }); setOpen(false); setValues({ firstName: "", lastName: "", email: "" }); }, onError: (requestError) => setError(requestError.message) });
   const revoke = useMutation({ mutationFn: adminService.revokeAdmin, meta: { successMessage: "Administrator access revoked." }, onSuccess: () => client.invalidateQueries({ queryKey: ["admins"] }) });
-  if (user?.role !== "SUPER_ADMIN") return <QueryError error={{ message: "Only a super administrator can manage administrators." }} />;
+  if (user?.role !== UserRole.SUPER_ADMIN) return <QueryError error={{ message: "Only a super administrator can manage administrators." }} />;
 	const rows = admins.data?.items || [];
   const submit = (event) => {
     event.preventDefault();

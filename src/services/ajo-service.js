@@ -1,5 +1,6 @@
 import { requestData } from "../api/client";
 import { normalizePage, pageParams } from "../api/pagination";
+import { JoinRequestStatus } from "../enums/statuses";
 
 export function mapAjoSlot(raw = {}) {
   const participantObject = typeof raw.participant === "object" && raw.participant !== null
@@ -117,7 +118,7 @@ export function mapJoinRequest(raw = {}, ajo) {
     slots: Number(raw.slots ?? raw.requestedSlots ?? 1),
     preferredPositions: normalizePreferredPositions(raw.preferredPositions ?? raw.preferredPayoutPositions),
     requestedAt: raw.requestedAt || raw.createdAt,
-    status: String(raw.status || "PENDING").toUpperCase(),
+    status: String(raw.status || JoinRequestStatus.PENDING).toUpperCase(),
   };
 }
 
@@ -151,8 +152,7 @@ export const ajoService = {
     const detail = mapAjo(await requestData({ method: "GET", url: `/ajos/${ajoId}` }));
     if (detail.creatorId) return mergeAjoSummaryWithDetail(summary, detail);
 
-    const fallback = summary || (await this.list({ page: 0, size: 100 })).items.find((ajo) => ajo.id === ajoId);
-    return mergeAjoSummaryWithDetail(fallback, detail);
+    return mergeAjoSummaryWithDetail(summary, detail);
   },
   async listForViewer(filters = {}) {
     return this.list(filters);
@@ -168,7 +168,7 @@ export const ajoService = {
     return (Array.isArray(rows) ? rows : rows?.items || []).map((row) => mapJoinRequest(row));
   },
   async getManagedJoinRequests(userId) {
-    const groups = await this.list({ page: 0, size: 100 });
+    const groups = await this.list();
     const managed = groups.items.filter((ajo) => ajo.creatorId === userId);
     const batches = await Promise.all(managed.map(async (ajo) => {
       const requests = await this.getJoinRequests(ajo.id);

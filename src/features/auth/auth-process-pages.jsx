@@ -31,6 +31,7 @@ export function EmailVerificationPage() {
   const navigate = useNavigate();
   const { user, verifyRegistrationOtp, resendRegistrationOtp } = useAuth();
   const email = state?.email || "";
+  const resendCooldownSeconds = state?.resendCooldownSeconds;
   const [otp, setOtp] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -58,9 +59,10 @@ export function EmailVerificationPage() {
     setBusy(true);
     setError("");
     try {
-      await resendRegistrationOtp(email);
+      const response = await resendRegistrationOtp(email);
       setOtp("");
       notifySuccess("A fresh verification code has been sent to your email.");
+      return response;
     } catch (requestError) {
       setError(requestError.message || "We couldn’t resend the code.");
       notifyError(requestError, "We couldn’t resend the code.");
@@ -77,7 +79,7 @@ export function EmailVerificationPage() {
         <OtpInput value={otp} onChange={(value) => { setOtp(value); setError(""); }} disabled={busy} autoFocus />
         <Button type="submit" disabled={busy || otp.length !== 6}>{busy ? "Verifying your code…" : "Verify email"}</Button>
       </form>
-      <OtpResendControl onResend={resend} busy={busy} />
+      <OtpResendControl cooldownSeconds={resendCooldownSeconds} onResend={resend} busy={busy} />
       <p className="auth-process__hint">For your security, verification codes expire after a short time and can only be used once.</p>
       <Link className="auth-process__back" to="/login">← Back to login</Link>
     </AuthProcessShell>
@@ -94,12 +96,13 @@ export function ForgotPasswordPage() {
   const [confirm, setConfirm] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [resendCooldownSeconds, setResendCooldownSeconds] = useState();
 
   const run = async (action) => {
     setBusy(true);
     setError("");
     try {
-      await action();
+      return await action();
     } catch (requestError) {
       setError(requestError.message || "We couldn’t complete this request.");
       notifyError(requestError, "We couldn’t complete this request.");
@@ -112,7 +115,8 @@ export function ForgotPasswordPage() {
     event.preventDefault();
     if (!/^\S+@\S+\.\S+$/.test(email.trim())) return setError("Enter a valid email address.");
     run(async () => {
-      await requestPasswordResetOtp(email.trim());
+      const response = await requestPasswordResetOtp(email.trim());
+      setResendCooldownSeconds(response.resendCooldownSeconds);
       notifySuccess("A password reset code was sent to your email.");
       setStep("OTP");
     });
@@ -140,9 +144,10 @@ export function ForgotPasswordPage() {
   };
 
   const resend = () => run(async () => {
-    await resendPasswordResetOtp(email.trim());
+    const response = await resendPasswordResetOtp(email.trim());
     setOtp("");
     notifySuccess("A new reset code has been sent.");
+    return response;
   });
 
   const content = {
@@ -172,7 +177,7 @@ export function ForgotPasswordPage() {
             <OtpInput value={otp} onChange={(value) => { setOtp(value); setError(""); }} disabled={busy} autoFocus />
             <Button type="submit" disabled={busy || otp.length !== 6}>{busy ? "Confirming code…" : "Confirm code"}</Button>
           </form>
-          <OtpResendControl onResend={resend} busy={busy} prompt="Code missing or expired?" />
+          <OtpResendControl cooldownSeconds={resendCooldownSeconds} onResend={resend} busy={busy} prompt="Code missing or expired?" />
         </>
       )}
 

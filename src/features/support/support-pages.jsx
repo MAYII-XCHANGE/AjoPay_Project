@@ -6,12 +6,14 @@ import { Badge, Button, Card, EmptyState, Modal, PageHeader, Skeleton } from "..
 import { useAuth } from "../../contexts/auth-context";
 import { formatDate } from "../../utils/formatters";
 import { Pagination } from "../../components/pagination";
+import { DEFAULT_PAGE_SIZE } from "../../config/pagination";
+import { SupportIssueStatus } from "../../enums/statuses";
 import "./support.css";
 
-const toneForStatus = (status) => status === "RESOLVED" ? "green" : status === "OPEN" ? "amber" : "blue";
+const toneForStatus = (status) => status === SupportIssueStatus.RESOLVED ? "green" : status === SupportIssueStatus.OPEN ? "amber" : "blue";
 
 function IssueCard({ issue, admin, onReview }) {
-  const status = issue.status || "OPEN";
+  const status = issue.status || SupportIssueStatus.OPEN;
   return (
     <article className="support-issue">
       <div className="support-issue__head"><span>{issue.type || "SUPPORT"}</span><Badge tone={toneForStatus(status)}>{status.toLowerCase().replace("_", " ")}</Badge></div>
@@ -62,9 +64,9 @@ export function AdminSupportIssuesPage() {
   const [page, setPage] = useState(0);
   const [filter, setFilter] = useState("");
   const [selected, setSelected] = useState(null);
-  const [status, setStatus] = useState("IN_REVIEW");
+  const [status, setStatus] = useState(SupportIssueStatus.IN_REVIEW);
   const [resolution, setResolution] = useState("");
-  const issues = useQuery({ queryKey: ["support-issues", "admin", page, filter], queryFn: () => supportService.listAll({ page, size: 20, status: filter }) });
+  const issues = useQuery({ queryKey: ["support-issues", "admin", page, filter], queryFn: () => supportService.listAll({ page, size: DEFAULT_PAGE_SIZE, status: filter }) });
   const update = useMutation({
     meta: { successMessage: "The support issue was updated." },
     mutationFn: () => supportService.update(selected.id, { status, resolution }),
@@ -74,11 +76,11 @@ export function AdminSupportIssuesPage() {
   return (
     <div className="admin-support">
       <PageHeader eyebrow="SUPPORT OPERATIONS" title="System issues" description="Review user disputes and system-support issues, then record a clear resolution." />
-      <div className="filter-bar filter-bar--simple"><select value={filter} onChange={(event) => { setFilter(event.target.value); setPage(0); }}><option value="">All statuses</option><option value="OPEN">Open</option><option value="IN_REVIEW">In review</option><option value="RESOLVED">Resolved</option></select></div>
+      <div className="filter-bar filter-bar--simple"><select value={filter} onChange={(event) => { setFilter(event.target.value); setPage(0); }}><option value="">All statuses</option><option value={SupportIssueStatus.OPEN}>Open</option><option value={SupportIssueStatus.IN_REVIEW}>In review</option><option value={SupportIssueStatus.RESOLVED}>Resolved</option></select></div>
       {issues.isLoading ? <Skeleton className="skeleton--table" /> : issues.data?.items?.length ? <><div className="support-grid">{issues.data.items.map((issue) => <IssueCard issue={issue} admin onReview={openReview} key={issue.id} />)}</div><Pagination {...issues.data} onChange={setPage} busy={issues.isFetching} /></> : <Card><EmptyState icon={<AlertIcon />} title="No open system issues" text="Everything is operating normally." /></Card>}
       <Modal open={Boolean(selected)} onClose={() => !update.isPending && setSelected(null)} title={`Review ${selected?.id || "issue"}`}>
         <form className="support-form" onSubmit={(event) => { event.preventDefault(); update.mutate(); }}>
-          <label>Status<select value={status} onChange={(event) => setStatus(event.target.value)}><option value="OPEN">Open</option><option value="IN_REVIEW">In review</option><option value="RESOLVED">Resolved</option></select></label>
+          <label>Status<select value={status} onChange={(event) => setStatus(event.target.value)}><option value={SupportIssueStatus.OPEN}>Open</option><option value={SupportIssueStatus.IN_REVIEW}>In review</option><option value={SupportIssueStatus.RESOLVED}>Resolved</option></select></label>
           <label>Resolution<textarea value={resolution} onChange={(event) => setResolution(event.target.value)} rows="5" placeholder="Record what was investigated and the outcome" /></label>
           {update.isError && <div className="form-error" role="alert">{update.error.message}</div>}
           <div><Button type="button" variant="secondary" onClick={() => setSelected(null)} disabled={update.isPending}>Cancel</Button><Button type="submit" disabled={update.isPending || (status === "RESOLVED" && !resolution.trim())}>{update.isPending ? "Saving…" : "Save update"}</Button></div>

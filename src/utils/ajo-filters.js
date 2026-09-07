@@ -1,6 +1,8 @@
+import { AjoStatus } from "../enums/statuses";
+
 const searchableValue = (value) => String(value ?? "").toLowerCase();
-const joinableStatuses = new Set(["OPEN", "FILLING"]);
-const preStartStatuses = new Set(["OPEN", "FILLING", "READY"]);
+const joinableStatuses = new Set([AjoStatus.OPEN, AjoStatus.FILLING]);
+const preStartStatuses = new Set([AjoStatus.OPEN, AjoStatus.FILLING, AjoStatus.READY]);
 
 export function isAjoFull(ajo) {
   const totalSlots = Number(ajo?.slotCount ?? 0);

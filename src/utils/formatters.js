@@ -1,3 +1,5 @@
+import { AjoStatus } from "../enums/statuses";
+
 const localeMap = { en: "en-NG", yo: "yo-NG", ha: "ha-NG", ig: "ig-NG" };
 const resolveLocale = (language = "en") => localeMap[language?.split("-")[0]] || "en-NG";
 
@@ -29,10 +31,10 @@ export const frequencyLabel = {
     MONTHLY: "Monthly",
 };
 export const statusLabel = {
-    OPEN: "Open to join",
-    FILLING: "Filling slots",
-    READY: "Ready to start",
-    ACTIVE: "Active",
-    COMPLETED: "Completed",
-    CLOSED: "Closed",
+    [AjoStatus.OPEN]: "Open to join",
+    [AjoStatus.FILLING]: "Filling slots",
+    [AjoStatus.READY]: "Ready to start",
+    [AjoStatus.ACTIVE]: "Active",
+    [AjoStatus.CYCLE_COMPLETED]: "Completed",
+    [AjoStatus.CLOSED]: "Closed",
 };

@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { BrandMark } from "../components/brand-mark";
 import { LanguageSelector } from "../components/language-selector";
 import { Trans, useTranslation } from "react-i18next";
+import { COPYRIGHT_YEAR } from "../config/public-content";
 import "./landing.css";
 import {
   ArrowIcon,
@@ -275,12 +276,13 @@ export function LandingPage() {
           </div>
           <div
             className="marketing-hero__visual"
-            aria-label="Preview of the AjoPay mobile experience"
+            aria-label="Illustrative preview of the AjoPay mobile experience"
           >
             <div className="hero-blob hero-blob--one" />
             <div className="hero-blob hero-blob--two" />
             <div className="hero-grid" />
             <PhoneMockup />
+            <small className="marketing-hero__disclaimer">Illustrative interface preview</small>
             <div className="hero-float hero-float--payout">
               <span>
                 <CheckIcon />
@@ -374,7 +376,7 @@ export function LandingPage() {
         </section>
 
         <section className="marketing-metrics" data-reveal>
-          <p>{t("landing.trustedBy")}</p>
+          <p>Illustrative examples of the progress AjoPay is designed to support.</p>
           <div>
             <strong>₦2.4B+</strong>
             <span>{t("landing.savedTogether")}</span>
@@ -591,7 +593,7 @@ export function LandingPage() {
           </div>
         </div>
         <div>
-          <span>{t("landing.rights")}</span>
+          <span>© {COPYRIGHT_YEAR} AjoPay. All rights reserved.</span>
           <span>{t("landing.madeNigeria")}</span>
         </div>
       </footer>

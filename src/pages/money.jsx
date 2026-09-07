@@ -20,6 +20,7 @@ import {
   PageHeader,
   Skeleton,
 } from "../components/ui";
+import { WithdrawalStatus } from "../enums/statuses";
 import {
   AddBankAccountModal,
   BankAccountsCard,
@@ -110,7 +111,7 @@ export function WalletPage() {
     if (reference) verifyFundingPayment(reference);
   }, [verifyFundingPayment]);
   const pendingAmount = (withdrawalRequests.data || [])
-    .filter((request) => ["PENDING", "PROCESSING"].includes(request.status))
+    .filter((request) => [WithdrawalStatus.PENDING, WithdrawalStatus.PROCESSING].includes(request.status))
     .reduce((sum, request) => sum + Number(request.amount || 0), 0);
   const fundedTotal = (allTransactions.data || [])
     .filter((tx) => tx.type === "FUNDING" && tx.direction === "credit")
@@ -447,7 +448,7 @@ export function TransactionsPage() {
                     tone={
                       tx.status === "SUCCESSFUL"
                         ? "green"
-                        : tx.status === "PENDING"
+                        : tx.status === WithdrawalStatus.PENDING
                           ? "amber"
                           : "red"
                     }

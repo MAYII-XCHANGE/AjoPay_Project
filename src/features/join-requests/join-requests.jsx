@@ -5,19 +5,20 @@ import { AlertIcon, CheckIcon, MailIcon, PhoneIcon, SearchIcon, UsersIcon } from
 import { Badge, Button, Card, EmptyState, PageHeader, Skeleton } from "../../components/ui";
 import { formatDate } from "../../utils/formatters";
 import { useAuth } from "../../contexts/auth-context";
+import { JoinRequestStatus as JoinRequestState } from "../../enums/statuses";
 import "./join-requests.css";
 
-const statusTone = { PENDING: "amber", ACCEPTED: "green", DECLINED: "red" };
+const statusTone = { [JoinRequestState.PENDING]: "amber", [JoinRequestState.ACCEPTED]: "green", [JoinRequestState.DECLINED]: "red" };
 
 export function RequestActions({ request, busy, onDecision }) {
-  if (request.status !== "PENDING")
+  if (request.status !== JoinRequestState.PENDING)
     return <JoinRequestStatus status={request.status} />;
   return (
     <div className="join-request-card__actions">
-      <Button variant="secondary" disabled={busy} onClick={() => onDecision("DECLINED")}>
+      <Button variant="secondary" disabled={busy} onClick={() => onDecision(JoinRequestState.DECLINED)}>
         {busy ? "Updating…" : "Decline"}
       </Button>
-      <Button disabled={busy} onClick={() => onDecision("ACCEPTED")}>
+      <Button disabled={busy} onClick={() => onDecision(JoinRequestState.ACCEPTED)}>
         <CheckIcon /> Accept
       </Button>
     </div>
@@ -25,7 +26,7 @@ export function RequestActions({ request, busy, onDecision }) {
 }
 
 export function JoinRequestStatus({ status }) {
-  const normalizedStatus = String(status || "PENDING").toUpperCase();
+  const normalizedStatus = String(status || JoinRequestState.PENDING).toUpperCase();
   return <Badge tone={statusTone[normalizedStatus] || "blue"}>{normalizedStatus.toLowerCase()}</Badge>;
 }
 
@@ -80,7 +81,7 @@ export function AdminJoinRequestsPage() {
       ]);
     },
   });
-  const counts = useMemo(() => ({ PENDING: (requests.data || []).length }), [requests.data]);
+  const counts = useMemo(() => ({ [JoinRequestState.PENDING]: (requests.data || []).length }), [requests.data]);
   const visible = useMemo(() => (requests.data || []).filter((request) => {
     const term = search.trim().toLowerCase();
     const matchesSearch = !term || [request.user?.name, request.user?.email, request.ajo?.name].some((value) => String(value ?? "").toLowerCase().includes(term));
@@ -90,7 +91,7 @@ export function AdminJoinRequestsPage() {
     <div className="admin-join-requests">
       <PageHeader eyebrow="MEMBERSHIP REVIEW" title="Join Requests" description="Review people who want to join an Ajo. A user becomes a member only after acceptance." />
       <div className="join-request-metrics">
-        <Card><span className="join-request-metrics__dot join-request-metrics__dot--pending" /><div><small>Awaiting review</small><strong>{counts.PENDING}</strong></div></Card>
+        <Card><span className="join-request-metrics__dot join-request-metrics__dot--pending" /><div><small>Awaiting review</small><strong>{counts[JoinRequestState.PENDING]}</strong></div></Card>
       </div>
       <div className="join-requests-toolbar">
         <label><SearchIcon /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search user, email, or Ajo" /></label>

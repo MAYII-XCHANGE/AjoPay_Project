@@ -16,6 +16,8 @@ import { Pagination } from "../../components/pagination";
 import { formatCurrency, formatDate, frequencyLabel, statusLabel } from "../../utils/formatters";
 import { filterDiscoverableAjos, getAvailableAjoSlots } from "../../utils/ajo-filters";
 import { useAuth } from "../../contexts/auth-context";
+import { DEFAULT_PAGE_SIZE } from "../../config/pagination";
+import { JoinRequestStatus as JoinRequestState } from "../../enums/statuses";
 import "./find-ajo.css";
 
 const cycleLabel = (ajo) => {
@@ -26,7 +28,7 @@ const cycleLabel = (ajo) => {
 export function JoinRequestStatus({ request, isMember = false }) {
   if (isMember || request?.status === "ACCEPTED")
     return <Badge tone="green"><CheckIcon /> Member</Badge>;
-  if (request?.status === "PENDING")
+  if (request?.status === JoinRequestState.PENDING)
     return <Badge tone="amber">Pending approval</Badge>;
   if (request?.status === "DECLINED")
     return <Badge tone="red">Request declined</Badge>;
@@ -48,7 +50,7 @@ export function JoinRequestButton({ ajo, request, publicView, isCreator = false,
     );
   if (ajo.joined || request?.status === "ACCEPTED")
     return <Button className={className} disabled><CheckIcon /> Member</Button>;
-  if (request?.status === "PENDING")
+  if (request?.status === JoinRequestState.PENDING)
     return <Button className={className} variant="secondary" onClick={onClick}>Request sent</Button>;
   return (
     <Button className={className} onClick={onClick} disabled={ajo.slotCount <= ajo.filledSlots}>
@@ -133,17 +135,17 @@ export function AjoGroupDetails({ ajo, request, publicView, isCreator, busy, can
           <div><small>FULL CYCLE</small><b>{cycleLabel(ajo)}</b><span>{ajo.startDate ? `Starts ${formatDate(ajo.startDate)}` : "Starts after approval"}</span></div>
         </div>
         {error && <div className="form-error" role="alert"><AlertIcon /> {error}</div>}
-        {!publicView && !isCreator && !ajo.joined && request?.status !== "PENDING" && request?.status !== "ACCEPTED" && available > 0 && (
+        {!publicView && !isCreator && !ajo.joined && request?.status !== JoinRequestState.PENDING && request?.status !== JoinRequestState.ACCEPTED && available > 0 && (
           <form className="ajo-details__form" onSubmit={(event) => { event.preventDefault(); onRequest({ slots, preferredPosition: preferredPosition === "ANY" ? null : preferredPosition }); }}>
             <div><label>Number of slots<select value={slots} onChange={(event) => setSlots(Number(event.target.value))}>{Array.from({ length: available }, (_, index) => <option value={index + 1} key={index + 1}>{index + 1} slot{index ? "s" : ""}</option>)}</select></label><label>Preferred payout turn<select value={preferredPosition} onChange={(event) => setPreferredPosition(event.target.value)}><option value="ANY">Any available position</option>{Array.from({ length: ajo.slotCount }, (_, index) => <option value={index + 1} key={index + 1}>Position {index + 1}</option>)}</select></label></div>
             <p><ShieldIcon /> Sending this request does not make you a member. The group admin must approve it first.</p>
             <Button type="submit" disabled={busy}>{busy ? "Sending request…" : request?.status === "DECLINED" ? "Send another request" : "Send join request"}</Button>
           </form>
         )}
-        {(publicView || isCreator || ajo.joined || request?.status === "PENDING" || request?.status === "ACCEPTED") && (
+        {(publicView || isCreator || ajo.joined || request?.status === JoinRequestState.PENDING || request?.status === JoinRequestState.ACCEPTED) && (
           <div className="ajo-details__footer">
-            <p>{isCreator ? "You created this Ajo and can manage its members, requests, and payout order." : request?.status === "PENDING" ? "The group admin is reviewing your request. You’ll receive a notification after a decision." : ajo.joined || request?.status === "ACCEPTED" ? "You are an official member of this savings circle." : "Sign in to send a join request to the group admin."}</p>
-            {request?.status === "PENDING" ? (
+            <p>{isCreator ? "You created this Ajo and can manage its members, requests, and payout order." : request?.status === JoinRequestState.PENDING ? "The group admin is reviewing your request. You’ll receive a notification after a decision." : ajo.joined || request?.status === JoinRequestState.ACCEPTED ? "You are an official member of this savings circle." : "Sign in to send a join request to the group admin."}</p>
+            {request?.status === JoinRequestState.PENDING ? (
               <Button variant="secondary" onClick={onCancel} disabled={cancelBusy}>
                 {cancelBusy ? "Cancelling…" : "Cancel request"}
               </Button>
@@ -166,7 +168,7 @@ export function FindAjo({ publicView = false }) {
   const [requestError, setRequestError] = useState("");
   const groups = useQuery({
     queryKey: ["ajos", "discovery", page],
-    queryFn: () => ajoService.list({ page, size: 20 }),
+    queryFn: () => ajoService.list({ page, size: DEFAULT_PAGE_SIZE }),
   });
   const selectedDetails = useQuery({ queryKey: ["ajo", selectedAjo?.id], queryFn: () => ajoService.detail(selectedAjo.id, selectedAjo), enabled: Boolean(selectedAjo) });
   const groupItems = useMemo(() => groups.data?.items || [], [groups.data]);

@@ -6,6 +6,7 @@ import {
   UsersIcon,
   WalletIcon,
 } from "../../components/icons";
+import { UserRole } from "../../enums/roles";
 
 export const adminNavigationSections = [
   {
@@ -51,7 +52,7 @@ export const adminNavigationSections = [
     translationKey: "platform",
     items: [
       { label: "Settings", translationKey: "settings", path: "/admin/settings", icon: SettingsIcon },
-      { label: "Administrators", path: "/admin/admins", icon: UsersIcon, roles: ["SUPER_ADMIN"] },
+      { label: "Administrators", path: "/admin/admins", icon: UsersIcon, roles: [UserRole.SUPER_ADMIN] },
       {
         label: "System issues",
         translationKey: "systemIssues",
