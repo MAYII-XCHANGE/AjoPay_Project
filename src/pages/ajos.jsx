@@ -27,7 +27,7 @@ import {
 } from "../utils/formatters";
 import { toApiLocalDateTime, toApiLocalTime, toDateTimeInputValue, validateCreateAjo } from "../utils/ajo-validation";
 import { DEFAULT_PAGE_SIZE } from "../config/pagination";
-import { AjoStatus, JoinRequestStatus as JoinRequestState } from "../enums/statuses";
+import { AjoStatus, ContributionStatus, JoinRequestStatus as JoinRequestState } from "../enums/statuses";
 import { isAjoCreator } from "../utils/ajo-permissions";
 import { QueryErrorState } from "../components/query-state";
 import { Pagination } from "../components/pagination";
@@ -390,13 +390,13 @@ export function AjoDetailPage() {
             <h2>{formatCurrency(currentContribution.amount)}</h2>
             <p>
               Due {formatDate(currentContribution.dueDate)} · Paid from your
-              Ajo wallet
+              Available Wallet and held in your Ajo balance
             </p>
           </div>
-          <Badge tone={currentContribution.status === "PAID" ? "green" : "amber"}>
+          <Badge tone={[ContributionStatus.COMPLETED, ContributionStatus.LATE_COMPLETED].includes(currentContribution.status) ? "green" : "amber"}>
             {currentContribution.status.toLowerCase()}
           </Badge>
-          {currentContribution.status === "DUE" && (
+          {[ContributionStatus.PENDING, ContributionStatus.PARTIAL, ContributionStatus.FINAL_DEBIT_PENDING].includes(currentContribution.status) && (
             <Button
               onClick={() => payContribution.mutate()}
               disabled={payContribution.isPending}
@@ -654,8 +654,8 @@ export function CreateAjoPage() {
               />
               <small>The first contribution period is due at this time, and the first participant becomes eligible for payout. Later periods repeat {frequencyLabel[values.frequency]?.toLowerCase()}.</small>
             </label>
-            <label>Late window starts (optional)<input type="time" value={values.lateWindowStart} onChange={(e) => set("lateWindowStart", e.target.value)} /></label>
-            <label>Late window ends (optional)<input type="time" value={values.lateWindowEnd} onChange={(e) => set("lateWindowEnd", e.target.value)} /></label>
+            <label>Late window starts<input type="time" value={values.lateWindowStart} onChange={(e) => set("lateWindowStart", e.target.value)} required /></label>
+            <label>Late window ends<input type="time" value={values.lateWindowEnd} onChange={(e) => set("lateWindowEnd", e.target.value)} required /></label>
             <label>Late fee (₦) *<input type="number" min="0" step="0.01" value={values.lateFeeAmount} onChange={(e) => set("lateFeeAmount", e.target.value)} required /></label>
             <label>Creator commission (%) *<input type="number" min="0" max="100" step="0.01" value={values.creatorCommissionPercent} onChange={(e) => set("creatorCommissionPercent", e.target.value)} required /></label>
           </div>

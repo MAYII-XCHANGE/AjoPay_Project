@@ -38,3 +38,12 @@ export const SupportIssueStatus = Object.freeze({
   RESOLVED: "RESOLVED",
   CLOSED: "CLOSED",
 });
+
+export const ContributionStatus = Object.freeze({
+  PENDING: "PENDING",
+  PARTIAL: "PARTIAL",
+  FINAL_DEBIT_PENDING: "FINAL_DEBIT_PENDING",
+  COMPLETED: "COMPLETED",
+  LATE_COMPLETED: "LATE_COMPLETED",
+  FAILED_FINAL_DEBIT: "FAILED_FINAL_DEBIT",
+});

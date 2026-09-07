@@ -28,8 +28,14 @@ export const notificationService = {
   remove(id) {
     return requestData({ method: "DELETE", url: `/notifications/${encodeURIComponent(id)}` });
   },
+  removeMany(ids) {
+    return requestData({ method: "DELETE", url: "/notifications", data: { ids } });
+  },
   removeAll() {
-    return requestData({ method: "DELETE", url: "/notifications" });
+    return requestData({ method: "DELETE", url: "/notifications/all" });
+  },
+  delete(id) {
+    return requestData({ method: "DELETE", url: `/notifications/${id}` });
   },
   getPreferences() {
     return requestData({ method: "GET", url: "/notifications/preferences" });
