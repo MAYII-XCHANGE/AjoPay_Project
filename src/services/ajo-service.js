@@ -152,7 +152,9 @@ export const ajoService = {
     const detail = mapAjo(await requestData({ method: "GET", url: `/ajos/${ajoId}` }));
     if (detail.creatorId) return mergeAjoSummaryWithDetail(summary, detail);
 
-    return mergeAjoSummaryWithDetail(summary, detail);
+    const fallback = summary
+      || (await this.list({ page: 0, size: 100 })).items.find((ajo) => ajo.id === ajoId);
+    return mergeAjoSummaryWithDetail(fallback, detail);
   },
   async listForViewer(filters = {}) {
     return this.list(filters);

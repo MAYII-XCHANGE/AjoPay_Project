@@ -6,7 +6,20 @@ const preStartStatuses = new Set([AjoStatus.OPEN, AjoStatus.FILLING, AjoStatus.R
 
 export function isAjoFull(ajo) {
   const totalSlots = Number(ajo?.slotCount ?? 0);
-  return totalSlots > 0 && getAvailableAjoSlots(ajo) === 0;
+  const occupiedSlots = Array.isArray(ajo?.slots)
+    ? ajo.slots.filter((slot) => (
+      slot.participant
+      || slot.user
+      || slot.participantName
+      || slot.participantId
+      || String(slot.status || "").toUpperCase() === "FILLED"
+    )).length
+    : 0;
+  return totalSlots > 0 && (
+    getAvailableAjoSlots(ajo) === 0
+    || Number(ajo?.filledSlots ?? 0) >= totalSlots
+    || occupiedSlots >= totalSlots
+  );
 }
 
 export function isAjoPreStart(ajo) {
@@ -14,7 +27,7 @@ export function isAjoPreStart(ajo) {
 }
 
 export function isAjoReadyToStart(ajo) {
-  return isAjoPreStart(ajo) && isAjoFull(ajo);
+  return ajo?.canStartCycle === true || (isAjoPreStart(ajo) && isAjoFull(ajo));
 }
 
 export function isAjoJoinable(ajo) {

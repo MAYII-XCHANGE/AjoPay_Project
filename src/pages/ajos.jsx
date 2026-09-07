@@ -28,6 +28,7 @@ import {
 import { toApiLocalDateTime, toApiLocalTime, toDateTimeInputValue, validateCreateAjo } from "../utils/ajo-validation";
 import { DEFAULT_PAGE_SIZE } from "../config/pagination";
 import { AjoStatus, JoinRequestStatus as JoinRequestState } from "../enums/statuses";
+import { isAjoCreator } from "../utils/ajo-permissions";
 import { QueryErrorState } from "../components/query-state";
 import { Pagination } from "../components/pagination";
 import { getAvailableAjoSlots, isAjoFull, isAjoJoinable } from "../utils/ajo-filters";
@@ -63,7 +64,7 @@ export function MyAjosPage() {
   const groups = data?.items || [];
   const mine =
     tab === "created"
-      ? groups.filter((ajo) => Boolean(user && ajo.creatorId === user.id))
+      ? groups.filter((ajo) => isAjoCreator(ajo, user))
       : tab === "available"
         ? groups.filter(isAjoJoinable)
         : groups.filter((ajo) => ajo.joined);
@@ -149,7 +150,7 @@ export function AjoDetailPage() {
   });
   const join = useMutation({
     meta: {
-      successMessage: () => ajo?.creatorId === user?.id
+      successMessage: () => isAjoCreator(ajo, user)
         ? "You joined your Ajo successfully."
         : "Your join request was sent to the group admin.",
     },
@@ -231,7 +232,7 @@ export function AjoDetailPage() {
   if (!ajo) return <div className="page"><QueryErrorState title="This Ajo could not be loaded" /></div>;
   const available = getAvailableAjoSlots(ajo);
   const groupIsFull = isAjoFull(ajo);
-  const isCreator = Boolean(user && ajo.creatorId === user.id);
+  const isCreator = isAjoCreator(ajo, user);
   const canFollowCreator = Boolean(ajo.creatorId && !isCreator);
   return (
     <div className="page">
@@ -308,10 +309,6 @@ export function AjoDetailPage() {
             </Button>
           )}
           <JoinRequestStatus request={currentRequest} isMember={ajo.joined} />
-          <small>
-            <ShieldIcon />
-            Your money stays protected in your wallet.
-          </small>
         </Card>
       </section>
       <div className="detail-grid">

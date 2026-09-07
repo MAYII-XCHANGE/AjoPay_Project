@@ -9,6 +9,7 @@ import { RatingForm } from "../features/ratings/rating-form";
 import { getAvailableAjoSlots, isAjoFull, isAjoPreStart, isAjoReadyToStart } from "../utils/ajo-filters";
 import { reorderBySlotId } from "../utils/ajo-order";
 import { AjoStatus, JoinRequestStatus } from "../enums/statuses";
+import { isAjoCreator } from "../utils/ajo-permissions";
 export function ManageAjoPage() {
   const { ajoId = "" } = useParams();
   const { user } = useAuth();
@@ -17,7 +18,7 @@ export function ManageAjoPage() {
     queryKey: ["ajo", ajoId, user?.id],
     queryFn: () => ajoService.detail(ajoId),
   });
-  const isCreator = Boolean(ajo && user && ajo.creatorId === user.id);
+  const isCreator = isAjoCreator(ajo, user);
   const { data: requests = [] } = useQuery({
     queryKey: ["ajo-requests", ajoId],
     queryFn: () => ajoService.getJoinRequests(ajoId),
@@ -248,7 +249,7 @@ export function OrderPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { data: ajo } = useQuery({ queryKey: ["ajo", ajoId], queryFn: () => ajoService.detail(ajoId) });
-  const isCreator = Boolean(ajo && user && ajo.creatorId === user.id);
+  const isCreator = isAjoCreator(ajo, user);
   const canArrangeOrder = isCreator && isAjoReadyToStart(ajo);
   const [memberOrder, setMemberOrder] = useState([]);
   const [draggedSlotId, setDraggedSlotId] = useState(null);

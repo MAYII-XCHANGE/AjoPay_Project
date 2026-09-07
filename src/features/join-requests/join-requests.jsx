@@ -88,7 +88,7 @@ export function AdminJoinRequestsPage() {
     return matchesSearch;
   }), [requests.data, search]);
   return (
-    <div className="admin-join-requests">
+    <div className="page admin-join-requests">
       <PageHeader eyebrow="MEMBERSHIP REVIEW" title="Join Requests" description="Review people who want to join an Ajo. A user becomes a member only after acceptance." />
       <div className="join-request-metrics">
         <Card><span className="join-request-metrics__dot join-request-metrics__dot--pending" /><div><small>Awaiting review</small><strong>{counts[JoinRequestState.PENDING]}</strong></div></Card>

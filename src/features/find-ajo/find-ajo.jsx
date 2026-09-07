@@ -18,6 +18,7 @@ import { filterDiscoverableAjos, getAvailableAjoSlots } from "../../utils/ajo-fi
 import { useAuth } from "../../contexts/auth-context";
 import { DEFAULT_PAGE_SIZE } from "../../config/pagination";
 import { JoinRequestStatus as JoinRequestState } from "../../enums/statuses";
+import { isAjoCreator } from "../../utils/ajo-permissions";
 import "./find-ajo.css";
 
 const cycleLabel = (ajo) => {
@@ -205,7 +206,7 @@ export function FindAjo({ publicView = false }) {
   });
   const openDetails = (ajo) => { setRequestError(""); setSelectedAjo(ajo); };
   const selectedGroup = selectedDetails.data || selectedAjo;
-  const selectedUserIsCreator = Boolean(user && selectedGroup?.creatorId === user.id);
+  const selectedUserIsCreator = isAjoCreator(selectedGroup, user);
   return (
     <div className="find-ajo">
       <PageHeader eyebrow="AJO MARKETPLACE" title="Find an Ajo that fits your life" description="Compare trusted savings circles, choose the right contribution plan, and request a place in the group." action={!publicView && <Link to="/ajos/create" className="button button--primary">Create an Ajo</Link>} />
@@ -217,7 +218,7 @@ export function FindAjo({ publicView = false }) {
         <div className="discovery-grid">{[1, 2, 3, 4].map((item) => <Skeleton className="skeleton--card discovery-skeleton" key={item} />)}</div>
       ) : availableGroups.length ? (
         <div className="discovery-grid">{availableGroups.map((ajo) => {
-          const isCreator = Boolean(user && ajo.creatorId === user.id);
+          const isCreator = isAjoCreator(ajo, user);
           return <AjoGroupCard ajo={ajo} request={ajo.currentRequest ? mapJoinRequest(ajo.currentRequest, ajo) : null} publicView={publicView} isCreator={isCreator} onOpen={() => openDetails(ajo)} key={ajo.id} />;
         })}</div>
       ) : (

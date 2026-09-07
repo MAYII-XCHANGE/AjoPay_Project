@@ -7,7 +7,7 @@ import {
   setTokens,
 } from "./token-store";
 
-const baseURL = import.meta.env.VITE_API_URL || "https://local.clarre.com.ng";
+const baseURL =  "https://local.clarre.com.ng";
 
 export const apiClient = axios.create({
   baseURL,

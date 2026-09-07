@@ -32,4 +32,18 @@ describe("Find Ajo filters", () => {
     expect(isAjoFull(ajo)).toBe(true);
     expect(isAjoReadyToStart(ajo)).toBe(true);
   });
+
+  it("recognizes fully occupied detail slots and the backend start permission", () => {
+    const occupied = {
+      status: "READY",
+      slotCount: 2,
+      availableSlots: 1,
+      slots: [
+        { participantName: "Ada" },
+        { participantName: "Bola" },
+      ],
+    };
+    expect(isAjoFull(occupied)).toBe(true);
+    expect(isAjoReadyToStart({ status: "READY", canStartCycle: true })).toBe(true);
+  });
 });

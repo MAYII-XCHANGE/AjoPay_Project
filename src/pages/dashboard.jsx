@@ -81,7 +81,6 @@ export function DashboardPage() {
           )}
           <div>
             <small>{t("dashboard.acrossAjos", { count: active.length })}</small>
-            <i className="positive"><TrendIcon /> Server confirmed</i>
           </div>
         </Card>
         <Card className="balance-card">
