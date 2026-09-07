@@ -1,0 +1,51 @@
+.admin-join-requests { display: grid; }
+.join-requests-notice { margin: -10px 0 20px; padding: 13px 15px; display: grid; grid-template-columns: 19px minmax(0, 1fr) 28px; align-items: center; gap: 9px; border: 1px solid #cde4da; border-radius: 11px; color: #286b58; background: #eef8f3; font-size: 11px; }
+.join-requests-notice--error { border-color: #eed1d1; color: #943f3f; background: #fff0f0; }
+.join-requests-notice svg { width: 17px; }
+.join-requests-notice button { width: 28px; height: 28px; border: 0; color: inherit; background: transparent; font-size: 20px; }
+.join-request-metrics { margin-bottom: 17px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 13px; }
+.join-request-metrics .card { display: flex; align-items: center; gap: 12px; }
+.join-request-metrics__dot { width: 11px; height: 11px; border-radius: 50%; background: #82938d; box-shadow: 0 0 0 7px #eff3f1; }
+.join-request-metrics__dot--pending { background: #d79b28; box-shadow: 0 0 0 7px #fff5df; }
+.join-request-metrics__dot--accepted { background: #2f8068; box-shadow: 0 0 0 7px #e9f5ef; }
+.join-request-metrics__dot--declined { background: #b85050; box-shadow: 0 0 0 7px #fbeded; }
+.join-request-metrics .card > div { display: grid; gap: 3px; }
+.join-request-metrics small { color: #7d8d87; font-size: 9px; }
+.join-request-metrics strong { color: #29493f; font-size: 23px; }
+.join-requests-toolbar { margin-bottom: 17px; padding: 12px 14px 0; display: flex; align-items: center; justify-content: space-between; gap: 18px; border: 1px solid #e0e8e5; border-radius: 13px; background: #fff; }
+.join-requests-toolbar > label { min-width: 220px; flex: 1; display: flex; align-items: center; gap: 8px; padding-bottom: 12px; }
+.join-requests-toolbar > label svg { width: 17px; color: #71867e; }
+.join-requests-toolbar input { width: 100%; height: 38px; border: 0; outline: none; color: #29493f; background: transparent; }
+.join-requests-toolbar .tabs { margin: 0; border: 0; }
+.join-request-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 15px; }
+.join-request-card { padding: 19px; display: grid; gap: 15px; border: 1px solid #dfe8e4; border-radius: 15px; background: #fff; box-shadow: 0 7px 24px rgba(24, 57, 49, .035); }
+.join-request-card__person { display: grid; grid-template-columns: 42px minmax(0, 1fr) auto; align-items: center; gap: 11px; }
+.join-request-card__person .avatar { width: 42px; height: 42px; font-size: 10px; }
+.join-request-card__person h2 { margin: 0 0 4px; color: #24473d; font-size: 13px; }
+.join-request-card__person p { margin: 0; color: #84928d; font-size: 9px; }
+.join-request-card__contact { padding: 10px; display: flex; flex-wrap: wrap; gap: 8px 16px; border-radius: 9px; color: #667b73; background: #f6f9f7; font-size: 9px; }
+.join-request-card__contact span { display: flex; align-items: center; gap: 5px; }
+.join-request-card__contact svg { width: 13px; }
+.join-request-card dl { margin: 0; display: grid; grid-template-columns: repeat(2, 1fr); border-top: 1px solid #e8eeeb; border-left: 1px solid #e8eeeb; }
+.join-request-card dl div { padding: 10px; display: grid; gap: 4px; border-right: 1px solid #e8eeeb; border-bottom: 1px solid #e8eeeb; }
+.join-request-card dt { color: #87958f; font-size: 8px; text-transform: uppercase; }
+.join-request-card dd { margin: 0; color: #3e5a52; font-size: 10px; font-weight: 800; }
+.join-request-card__actions { display: flex; justify-content: flex-end; gap: 8px; }
+.join-request-card__actions .button { min-width: 105px; }
+.join-request-card__actions svg { width: 14px; }
+
+@media (max-width: 900px) { .join-request-grid { grid-template-columns: 1fr; } }
+@media (max-width: 700px) {
+  .join-request-metrics { grid-template-columns: 1fr; }
+  .join-requests-toolbar { align-items: stretch; flex-direction: column; padding-top: 8px; }
+  .join-requests-toolbar > label { min-width: 0; padding-bottom: 0; }
+  .join-requests-toolbar .tabs { width: 100%; overflow-x: auto; }
+}
+@media (max-width: 440px) {
+  .join-request-card { padding: 15px; }
+  .join-request-card__person { grid-template-columns: 38px minmax(0, 1fr); }
+  .join-request-card__person > .badge { grid-column: 2; justify-self: start; }
+  .join-request-card dl { grid-template-columns: 1fr; }
+  .join-request-card__actions { align-items: stretch; flex-direction: column-reverse; }
+  .join-request-card__actions .button { width: 100%; }
+}

@@ -1,0 +1,23 @@
+.support-page, .admin-support { display: grid; }
+.support-page > .success-banner { margin: -9px 0 18px; }
+.support-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 15px; }
+.support-issue { padding: 19px; display: flex; flex-direction: column; border: 1px solid #dfe7e4; border-radius: 14px; background: #fff; }
+.support-issue__head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.support-issue__head > span { color: #8b9893; font-size: 8px; font-weight: 900; letter-spacing: 1px; }
+.support-issue h2 { margin: 15px 0 7px; color: #29483f; font-size: 14px; }
+.support-issue > p { margin: 0; color: #70817b; font-size: 10px; line-height: 1.6; }
+.support-issue__user { margin-top: 14px; padding: 9px 10px; display: flex; justify-content: space-between; gap: 10px; border-radius: 8px; color: #71827c; background: #f5f8f7; font-size: 9px; }
+.support-issue__resolution { margin-top: 14px; padding: 11px; display: grid; grid-template-columns: 18px 1fr; gap: 8px; border-radius: 9px; color: #37695b; background: #edf6f2; font-size: 9px; line-height: 1.5; }
+.support-issue__resolution svg { width: 16px; }
+.support-issue__resolution span { display: grid; gap: 3px; }
+.support-issue footer { margin-top: auto; padding-top: 16px; display: flex; align-items: center; justify-content: space-between; gap: 10px; color: #8a9893; font-size: 8px; }
+.support-issue footer .button { min-height: 34px; padding: 0 11px; }
+.support-form { padding-top: 17px; display: grid; gap: 14px; }
+.support-form label { display: grid; gap: 6px; color: #40584f; font-size: 10px; font-weight: 800; }
+.support-form input, .support-form select, .support-form textarea { width: 100%; padding: 0 11px; border: 1px solid #dce5e1; border-radius: 9px; outline: none; color: #29483f; background: #fff; }
+.support-form input, .support-form select { height: 44px; }
+.support-form textarea { padding-top: 11px; resize: vertical; }
+.support-form label small { justify-self: end; color: #899690; font-size: 8px; }
+.support-form > div:last-child { display: flex; justify-content: flex-end; gap: 8px; }
+@media (max-width: 760px) { .support-grid { grid-template-columns: 1fr; } }
+@media (max-width: 440px) { .support-form > div:last-child { align-items: stretch; flex-direction: column-reverse; } .support-form > div:last-child .button { width: 100%; } .support-issue__user, .support-issue footer { align-items: flex-start; flex-direction: column; } }

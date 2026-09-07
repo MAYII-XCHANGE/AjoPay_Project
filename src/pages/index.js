@@ -1,0 +1,12 @@
+export { LandingPage } from "./landing";
+export { TermsPage, PrivacyPage } from "./legal";
+export { AuthPage } from "./auth";
+export { EmailVerificationPage, ForgotPasswordPage } from "../features/auth/auth-process-pages";
+export { DashboardPage } from "./dashboard";
+export { FindAjoPage, MyAjosPage, AjoDetailPage, CreateAjoPage } from "./ajos";
+export { ManageAjoPage, OrderPage } from "./manage";
+export { WalletPage, TransactionsPage } from "./money";
+export { NotificationsPage, ProfilePage } from "./account";
+export { AdminOverviewPage, AdminUsersPage, AdminAjosPage, AdminTransactionsPage, AdminWithdrawalsPage, AdminSettingsPage, AdminsPage } from "./admin";
+export { AdminJoinRequestsPage } from "../features/join-requests/join-requests";
+export { UserSupportPage, AdminSupportIssuesPage } from "../features/support/support-pages";
