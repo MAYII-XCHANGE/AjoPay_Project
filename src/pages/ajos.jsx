@@ -27,11 +27,12 @@ import {
 } from "../utils/formatters";
 import { toApiLocalDateTime, toApiLocalTime, toDateTimeInputValue, validateCreateAjo } from "../utils/ajo-validation";
 import { DEFAULT_PAGE_SIZE } from "../config/pagination";
-import { AjoStatus, ContributionStatus, JoinRequestStatus as JoinRequestState } from "../enums/statuses";
+import { AjoStatus, JoinRequestStatus as JoinRequestState } from "../enums/statuses";
 import { isAjoCreator } from "../utils/ajo-permissions";
 import { QueryErrorState } from "../components/query-state";
 import { Pagination } from "../components/pagination";
 import { getAvailableAjoSlots, isAjoFull, isAjoJoinable } from "../utils/ajo-filters";
+import { ContributionPaymentCard } from "../features/contributions/contribution-payment-card";
 export function FindAjoPage({ publicView = false }) {
   const content = <FindAjo publicView={publicView} />;
   if (publicView)
@@ -192,11 +193,15 @@ export function AjoDetailPage() {
     (contribution) => contribution.participant.id === user.id,
   );
   const payContribution = useMutation({
-    meta: { successMessage: "Your contribution payment was successful." },
-    mutationFn: () =>
+    meta: {
+      successMessage: (updatedContribution) => Number(updatedContribution.remainingAmount) > 0
+        ? "Your partial contribution payment was successful."
+        : "Your contribution has been fully paid.",
+    },
+    mutationFn: (amount) =>
       contributionService.pay(
         currentContribution.id,
-        Number(currentContribution.remainingAmount ?? currentContribution.amount),
+        amount,
         crypto.randomUUID(),
       ),
     onSuccess: async () => {
@@ -381,31 +386,14 @@ export function AjoDetailPage() {
         </Card>
       </div>
       {ajo.status === AjoStatus.ACTIVE && currentContribution && (
-        <Card className="ajo-contribution-card">
-          <span className="ajo-contribution-card__icon">
-            {currentContribution.status === "PAID" ? <CheckIcon /> : "₦"}
-          </span>
-          <div>
-            <small>CURRENT CYCLE CONTRIBUTION</small>
-            <h2>{formatCurrency(currentContribution.amount)}</h2>
-            <p>
-              Due {formatDate(currentContribution.dueDate)} · Paid from your
-              Available Wallet and held in your Ajo balance
-            </p>
-          </div>
-          <Badge tone={[ContributionStatus.COMPLETED, ContributionStatus.LATE_COMPLETED].includes(currentContribution.status) ? "green" : "amber"}>
-            {currentContribution.status.toLowerCase()}
-          </Badge>
-          {[ContributionStatus.PENDING, ContributionStatus.PARTIAL, ContributionStatus.FINAL_DEBIT_PENDING].includes(currentContribution.status) && (
-            <Button
-              onClick={() => payContribution.mutate()}
-              disabled={payContribution.isPending}
-            >
-              {payContribution.isPending ? "Paying…" : "Pay contribution"}
-            </Button>
-          )}
-          {payContribution.isError && <div className="form-error" role="alert">{payContribution.error.message}</div>}
-        </Card>
+        <ContributionPaymentCard
+          key={`${currentContribution.id}-${currentContribution.remainingAmount}`}
+          contribution={currentContribution}
+          paying={payContribution.isPending}
+          paymentError={payContribution.error}
+          onPay={(amount) => payContribution.mutate(amount)}
+          onClearError={payContribution.reset}
+        />
       )}
       {ajo.status === AjoStatus.ACTIVE && ajo.joined && (
         <div className="ajo-member-actions">

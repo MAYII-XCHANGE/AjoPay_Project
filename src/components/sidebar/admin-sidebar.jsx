@@ -28,7 +28,6 @@ export function AdminSidebar({ open, onClose, user, badges, onSignOut }) {
           <CloseIcon />
         </button>
       </div>
-      <span className="sidebar__context">{t("navigation.adminOperations")}</span>
       <nav className="sidebar__nav" aria-label="Admin navigation">
         {adminNavigationSections.map((section) => (
           <SidebarSection

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { mapAjo, mapAjoSlot, mapJoinRequest, mergeAjoSummaryWithDetail, normalizePreferredPositions, toJoinRequestAction } from "./ajo-service";
 import { mapBankAccount } from "./wallet-service";
+import { mapContribution } from "./contribution-service";
+import { mapAdminDashboard, mapAdminSettings, mapAdminUser } from "./admin-service";
 
 describe("API response mappers", () => {
   it("normalizes Ajo creator and viewer details", () => {
@@ -92,5 +94,62 @@ describe("API response mappers", () => {
 
   it("treats a bank account without verification status as unverified", () => {
     expect(mapBankAccount({ id: "b1", primaryAccount: true })).toMatchObject({ id: "b1", isDefault: true, verified: false });
+  });
+
+  it("normalizes contribution balances and its payment deadline", () => {
+    expect(mapContribution({
+      id: "c1",
+      requiredAmount: "100000",
+      paidAmount: "40000",
+      remainingAmount: "60000",
+      dueAt: "2026-10-01T10:00:00",
+    })).toMatchObject({
+      amount: 100000,
+      requiredAmount: 100000,
+      paidAmount: 40000,
+      remainingAmount: 60000,
+      paymentDeadline: "2026-10-01T10:00:00",
+    });
+  });
+
+  it("normalizes alternate admin dashboard count and balance fields", () => {
+    expect(mapAdminDashboard({
+      users: 25,
+      totalAjoGroups: 7,
+      totalAvailableBalance: "150000",
+      totalAjoBalance: "80000",
+      pendingWithdrawalCount: 3,
+    })).toMatchObject({
+      totalUsers: 25,
+      totalAjos: 7,
+      availableBalance: 150000,
+      ajoBalance: 80000,
+      pendingWithdrawals: 3,
+    });
+  });
+
+  it("normalizes safe admin user summaries", () => {
+    expect(mapAdminUser({
+      userId: "u1",
+      firstName: "Ada",
+      lastName: "Okafor",
+      accountStatus: "active",
+      createdAt: "2026-09-01T10:00:00",
+    })).toMatchObject({
+      id: "u1",
+      name: "Ada Okafor",
+      status: "ACTIVE",
+      role: "USER",
+      joinedAt: "2026-09-01T10:00:00",
+    });
+  });
+
+  it("normalizes both map and array settings API responses", () => {
+    expect(mapAdminSettings({ "ajo.renewal.enabled": "true" })).toEqual([
+      expect.objectContaining({ key: "ajo.renewal.enabled", value: "true", category: "ajo" }),
+    ]);
+    expect(mapAdminSettings([{ settingKey: "withdrawal.daily-limit", settingValue: 500000 }])).toEqual([
+      expect.objectContaining({ key: "withdrawal.daily-limit", value: "500000", category: "withdrawal" }),
+    ]);
   });
 });

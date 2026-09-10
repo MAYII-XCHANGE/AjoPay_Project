@@ -25,6 +25,18 @@ export const formatDate = (value, language = "en") => {
     year: "numeric",
     }).format(date);
 };
+export const formatDateTime = (value, language = "en") => {
+    const date = new Date(value);
+    if (!value || Number.isNaN(date.getTime())) return "Not available";
+    return new Intl.DateTimeFormat(resolveLocale(language), {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        timeZone: "Africa/Lagos",
+    }).format(date);
+};
 export const frequencyLabel = {
     DAILY: "Daily",
     WEEKLY: "Weekly",

@@ -1451,9 +1451,8 @@ p {
 .ajo-contribution-card {
   margin-top: 18px;
   display: grid;
-  grid-template-columns: 46px minmax(0, 1fr) auto auto;
-  align-items: center;
-  gap: 14px;
+  gap: 20px;
+  padding: 24px;
 }
 .ajo-contribution-card__icon {
   width: 44px;
@@ -1466,10 +1465,153 @@ p {
   font-weight: 850;
 }
 .ajo-contribution-card__icon svg { width: 19px; }
-.ajo-contribution-card > div { display: grid; gap: 3px; }
-.ajo-contribution-card small { color: #84938d; font-size: 8px; font-weight: 850; letter-spacing: 1px; }
-.ajo-contribution-card h2 { margin: 0; color: #29483f; font-size: 19px; }
-.ajo-contribution-card p { margin: 0; color: #7a8b85; font-size: 9px; }
+.contribution-payment-card__header {
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+}
+.contribution-payment-card__header > div { display: grid; gap: 3px; }
+.contribution-payment-card small { color: #84938d; font-size: 8px; font-weight: 850; letter-spacing: 1px; }
+.contribution-payment-card h2 { margin: 0; color: #29483f; font-size: 19px; }
+.contribution-payment-card p { margin: 0; color: #7a8b85; font-size: 10px; line-height: 1.5; }
+.contribution-payment-card__overview {
+  display: grid;
+  grid-template-columns: minmax(230px, .9fr) minmax(0, 1.5fr);
+  border: 1px solid #e2ebe7;
+  border-radius: 16px;
+  overflow: hidden;
+}
+.contribution-payment-card__outstanding {
+  padding: 22px;
+  display: grid;
+  align-content: center;
+  gap: 6px;
+  background: linear-gradient(140deg, #173f35, #24624f);
+  color: white;
+}
+.contribution-payment-card__outstanding small { color: #b9d2c9; }
+.contribution-payment-card__outstanding strong { font-size: clamp(24px, 4vw, 32px); letter-spacing: -.8px; }
+.contribution-payment-card__outstanding span { color: #bed2cb; font-size: 10px; }
+.contribution-payment-card__progress { padding: 20px 22px; display: grid; align-content: center; gap: 14px; background: #f8faf9; }
+.contribution-payment-card__progress dl { margin: 0; display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
+.contribution-payment-card__progress dl div { display: grid; gap: 4px; }
+.contribution-payment-card__progress dt { color: #7a8c86; font-size: 9px; }
+.contribution-payment-card__progress dd { margin: 0; color: #29483f; font-size: 14px; font-weight: 800; }
+.contribution-payment-card__progress-label { display: flex; justify-content: space-between; color: #667a73; font-size: 10px; }
+.contribution-payment-card__progress-label b { color: #2b705b; }
+.contribution-payment-card__progress-track { height: 7px; overflow: hidden; border-radius: 8px; background: #dfe9e5; }
+.contribution-payment-card__progress-track span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #2b745e, #e0aa3c); transition: width .3s ease; }
+.contribution-payment-card__period {
+  padding: 12px 14px;
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 11px;
+  border-radius: 11px;
+  background: #eaf4ef;
+  color: #2c6e5b;
+  font-size: 10px;
+}
+.contribution-payment-card__period > svg { width: 18px; }
+.contribution-payment-card__period > span { display: grid; gap: 2px; }
+.contribution-payment-card__period small { color: #638278; letter-spacing: 0; font-weight: 600; }
+.contribution-payment-card__period > strong { font-size: 10px; }
+.contribution-payment-card__period.expired { background: #fff0f0; color: #9f3636; }
+.contribution-payment-card__form {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+  padding-top: 2px;
+}
+.contribution-payment-card__form-heading { display: grid; gap: 4px; }
+.contribution-payment-card__form-heading h3 { margin: 0; color: #23473e; font-size: 15px; }
+.contribution-payment-card__form-heading p { font-size: 10px; }
+.contribution-payment-card__quick-select {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 9px;
+}
+.contribution-payment-card__quick-select button {
+  min-width: 0;
+  padding: 11px 12px;
+  display: grid;
+  gap: 3px;
+  text-align: left;
+  border: 1px solid #dce6e2;
+  border-radius: 10px;
+  color: #34574e;
+  background: white;
+  transition: border-color .15s, background .15s, box-shadow .15s;
+}
+.contribution-payment-card__quick-select button:hover,
+.contribution-payment-card__quick-select button.active {
+  border-color: #2d745f;
+  background: #eef6f2;
+  box-shadow: 0 0 0 2px rgba(45, 116, 95, .07);
+}
+.contribution-payment-card__quick-select button b { font-size: 11px; }
+.contribution-payment-card__quick-select button small { overflow: hidden; color: #6e827b; letter-spacing: 0; text-overflow: ellipsis; }
+.contribution-payment-card__form > label {
+  max-width: 520px;
+  display: grid;
+  gap: 8px;
+  color: #36564d;
+  font-size: 11px;
+  font-weight: 800;
+}
+.contribution-payment-card__input {
+  min-height: 48px;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  align-items: center;
+  border: 1px solid #d7e2dd;
+  border-radius: 10px;
+  background: white;
+  overflow: hidden;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.contribution-payment-card__input:focus-within {
+  border-color: #2d745f;
+  box-shadow: 0 0 0 3px rgba(45, 116, 95, .1);
+}
+.contribution-payment-card__input > b {
+  height: 100%;
+  display: grid;
+  place-items: center;
+  color: #2d745f;
+  background: #f0f6f3;
+  border-right: 1px solid #dfe8e4;
+}
+.contribution-payment-card__input input {
+  width: 100%;
+  height: 46px;
+  padding: 0 14px;
+  border: 0;
+  outline: 0;
+  color: #193f35;
+  background: transparent;
+  font-size: 16px;
+  font-weight: 750;
+}
+.contribution-payment-card__preview {
+  padding: 14px 16px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px 24px;
+  border-radius: 11px;
+  background: #f4f7f5;
+  color: #647871;
+  font-size: 11px;
+}
+.contribution-payment-card__preview > small { grid-column: 1 / -1; }
+.contribution-payment-card__preview > div { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.contribution-payment-card__preview b { color: #244a40; }
+.contribution-payment-card__wallet-note { display: flex; align-items: center; gap: 7px; }
+.contribution-payment-card__wallet-note svg { width: 15px; flex: 0 0 auto; color: #2d745f; }
+.contribution-payment-card__form > .form-error,
+.contribution-payment-card__form > .button[type="submit"] { grid-column: 1 / -1; }
+.contribution-payment-card__form > .button[type="submit"] { justify-self: end; min-width: 220px; }
 .ajo-member-actions {
   margin-top: 18px;
   padding: 16px 18px;
@@ -2238,12 +2380,25 @@ p {
 .data-table--transactions .data-table__row {
   grid-template-columns: minmax(190px, 1.7fr) minmax(180px, 1.6fr) minmax(105px, 0.9fr) minmax(105px, 0.8fr) minmax(105px, 0.8fr);
 }
+.data-table--transactions .data-table__head > :last-child,
+.data-table--transactions .data-table__row > strong:last-child {
+  justify-self: center;
+  text-align: center;
+}
 .transaction-description {
   min-width: 0;
   color: #5f726c;
   line-height: 1.45;
   overflow-wrap: anywhere;
 }
+.transaction-status {
+  font-size: 11px;
+  font-weight: 750;
+  text-transform: capitalize;
+}
+.transaction-status--success { color: #28705b; }
+.transaction-status--pending { color: #9a6817; }
+.transaction-status--failed { color: #a33e3e; }
 .notification-list {
   padding: 0;
   overflow: hidden;

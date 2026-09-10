@@ -1,11 +1,23 @@
 import { requestData } from "../api/client";
 
-const mapContribution = (item) => ({
-  ...item,
-  amount: Number(item.amount ?? item.requiredAmount ?? 0),
-  dueDate: item.dueDate || item.dueAt,
-  participant: item.participant || item.user || { id: item.participantId },
-});
+export const mapContribution = (item) => {
+  const requiredAmount = Number(item.requiredAmount ?? item.amount ?? 0);
+  const paidAmount = Number(item.paidAmount ?? item.amountPaid ?? 0);
+  const remainingAmount = Number(
+    item.remainingAmount ?? item.outstandingAmount ?? Math.max(requiredAmount - paidAmount, 0),
+  );
+
+  return {
+    ...item,
+    amount: requiredAmount,
+    requiredAmount,
+    paidAmount,
+    remainingAmount,
+    dueDate: item.dueDate || item.dueAt,
+    paymentDeadline: item.paymentDeadline || item.deadline || item.periodEnd || item.expiresAt || item.dueAt || item.dueDate,
+    participant: item.participant || item.user || { id: item.participantId },
+  };
+};
 
 export const contributionService = {
   async listByCycle(cycleId) {

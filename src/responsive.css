@@ -290,12 +290,54 @@ button {
   }
 
   .ajo-contribution-card {
-    grid-template-columns: 44px minmax(0, 1fr) auto;
+    padding: 19px;
+    gap: 16px;
   }
 
-  .ajo-contribution-card > .button {
-    grid-column: 1 / -1;
+  .contribution-payment-card__header {
+    grid-template-columns: 44px minmax(0, 1fr);
+  }
+
+  .contribution-payment-card__header > .badge {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  .contribution-payment-card__overview,
+  .contribution-payment-card__form {
+    grid-template-columns: 1fr;
+  }
+
+  .contribution-payment-card__outstanding {
+    padding: 20px;
+  }
+
+  .contribution-payment-card__form > *,
+  .contribution-payment-card__form > .form-error,
+  .contribution-payment-card__form > .button[type="submit"] {
+    grid-column: 1;
+  }
+
+  .contribution-payment-card__form > .button,
+  .contribution-payment-card__form > .button[type="submit"] {
     width: 100%;
+    justify-self: stretch;
+  }
+
+  .contribution-payment-card__period {
+    grid-template-columns: 26px minmax(0, 1fr);
+  }
+
+  .contribution-payment-card__period > strong {
+    grid-column: 2;
+  }
+
+  .contribution-payment-card__preview {
+    grid-template-columns: 1fr;
+  }
+
+  .contribution-payment-card__preview > small {
+    grid-column: 1;
   }
 
   .ajo-member-actions {
@@ -462,7 +504,7 @@ button {
   .data-table--transactions .data-table__row > :nth-child(5) {
     grid-column: 2;
     grid-row: 3;
-    justify-self: end;
+    justify-self: center;
     align-self: end;
   }
 

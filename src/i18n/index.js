@@ -33,7 +33,6 @@ const resources = {
         platform: "Platform",
         settings: "Settings",
         systemIssues: "System issues",
-        adminOperations: "Admin operations",
         backToMember: "Back to member app",
         close: "Close navigation",
         open: "Open navigation",

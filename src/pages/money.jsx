@@ -445,18 +445,16 @@ export function TransactionsPage() {
                 </span>
                 <span className="transaction-description">{tx.description || "—"}</span>
                 <span>{formatDate(tx.date, i18n.resolvedLanguage)}</span>
-                <span>
-                  <Badge
-                    tone={
-                      tx.status === "SUCCESSFUL"
-                        ? "green"
-                        : tx.status === WithdrawalStatus.PENDING
-                          ? "amber"
-                          : "red"
-                    }
-                  >
-                    {tx.status.toLowerCase()}
-                  </Badge>
+                <span
+                  className={`transaction-status transaction-status--${
+                    tx.status === "SUCCESSFUL"
+                      ? "success"
+                      : tx.status === WithdrawalStatus.PENDING
+                        ? "pending"
+                        : "failed"
+                  }`}
+                >
+                  {String(tx.status).replaceAll("_", " ").toLowerCase()}
                 </span>
                 <strong className={tx.direction}>
                   {tx.direction === "credit" ? "+" : "−"}
